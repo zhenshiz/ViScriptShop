@@ -4,6 +4,8 @@ import com.lowdragmc.lowdraglib2.registry.AutoRegistry;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
 import com.mojang.logging.LogUtils;
 import com.viscriptshop.command.ICommand;
+import com.viscriptshop.gui.configurator.SyncAccessor;
+import com.viscriptshop.gui.data.Shop;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -19,10 +21,11 @@ import java.util.function.Supplier;
 @Mod(ViscriptShop.MOD_ID)
 public class ViscriptShop {
     public static final String MOD_ID = "viscript_shop";
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
 
     public ViscriptShop(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        SyncAccessor.init();
     }
 
     //注册指令

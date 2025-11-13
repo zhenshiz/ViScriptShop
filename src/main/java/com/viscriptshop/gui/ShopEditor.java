@@ -1,5 +1,7 @@
 package com.viscriptshop.gui;
 
+import com.lowdragmc.lowdraglib2.LDLib2;
+import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -7,52 +9,38 @@ import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
+import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.gui.components.ShopEditorDialog;
 import com.viscriptshop.gui.data.MerchantInfo;
+import com.viscriptshop.gui.data.Shop;
+import com.viscriptshop.gui.data.ShopInfo;
+import com.viscriptshop.util.MenuUtil;
+import com.viscriptshop.util.ShopHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.appliedenergistics.yoga.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class ShopEditor extends UIElement {
-    private final List<MerchantInfo> merchants = new ArrayList<>();
+    public ShopInfo shopInfo = new ShopInfo();
     public ShopEditorDialog dialog;
     private ScrollerView merchantsView;
-
-    {
-        ItemStack item = Items.STICK.getDefaultInstance();
-        item.set(DataComponents.ITEM_NAME, Component.nullToEmpty("测试"));
-        merchants.add(new MerchantInfo()
-                .itemA(item)
-                .itemResult(Items.STONE.getDefaultInstance())
-                .xp(100)
-                .build());
-        merchants.add(new MerchantInfo()
-                .itemA(Items.STICK.getDefaultInstance())
-                .itemResult(Items.STONE.getDefaultInstance())
-                .xp(100)
-                .build());
-        merchants.add(new MerchantInfo()
-                .itemA(Items.STICK.getDefaultInstance())
-                .itemB(Items.DIAMOND_AXE.getDefaultInstance())
-                .itemResult(Items.STONE.getDefaultInstance())
-                .xp(100)
-                .build());
-    }
 
     public ShopEditor() {
         this.layout(layout -> {
@@ -83,15 +71,60 @@ public class ShopEditor extends UIElement {
             layout.setPadding(YogaEdge.TOP, 10);
             layout.setFlex(14);
         });
-        head.addChildren(new Button().setText("viscript_shop.editor.save").layout(layout -> layout.setFlex(2)),
+        TreeBuilder.Menu menuBuilder = TreeBuilder.Menu.start().leaf("viscript_shop.editor.load", () -> {
+            //打开本地文件
+            Dialog.showFileDialog("viscript_shop.editor.load", new File(LDLib2.getAssetsDir(), ShopHelper.SHOP_PATH), true, Dialog.suffixFilter(Shop.SUFFIX), file->{
+                if (file != null && file.exists()) {
+                    try {
+                        CompoundTag data = NbtIo.read(file.toPath());
+                        ShopInfo shopInfo = new ShopInfo();
+                        shopInfo.deserializeNBT(Platform.getFrozenRegistry(), Objects.requireNonNull(data));
+                        this.shopInfo = shopInfo;
+                        ShopHelper.cacheShopFile = file;
+                        reloadMerchants();
+                    } catch (IOException e) {
+                        Message.error("editor.loading_failed", this);
+                    }
+                }
+            }).show(this);
+        }).leaf("viscript_shop.editor.save", () -> {
+            //判断缓存文件是否存在
+            if (ShopHelper.cacheShopFile != null && ShopHelper.cacheShopFile.exists()) {
+                //直接更新文件
+                CompoundTag fileData = this.shopInfo.serializeNBT(Platform.getFrozenRegistry());
+                try {
+                    NbtIo.write(fileData, ShopHelper.cacheShopFile.toPath());
+                } catch (IOException e) {
+                }
+                Message.success("viscript_npc.message.saveSuccess", this);
+            } else {
+                //另存为
+                this.saveAsFile();
+            }
+        }).leaf("viscript_shop.editor.saveAs", this::saveAsFile);
+        head.addChildren(
+                MenuUtil.createMenuTab(menuBuilder, this, "viscript_shop.editor.file"),
                 title,
-                new Button().setOnClick(event -> Minecraft.getInstance().setScreen(null)).setText("X").layout(layout -> layout.setFlex(1)));
+                new Button().setOnClick(event -> Minecraft.getInstance().setScreen(null)).setText("X").layout(layout -> layout.setFlex(1)))
+        ;
 
         this.dialog = (ShopEditorDialog) new ShopEditorDialog(this)
                 .layout(layout -> {
                     layout.setWidthPercent(100);
                     layout.setHeightPercent(100);
                 });
+
+        File file = ShopHelper.cacheShopFile;
+        if (file != null && file.exists()) {
+            try {
+                CompoundTag data = NbtIo.read(file.toPath());
+                ShopInfo shopInfo = new ShopInfo();
+                shopInfo.deserializeNBT(Platform.getFrozenRegistry(), Objects.requireNonNull(data));
+                this.shopInfo = shopInfo;
+            } catch (IOException e) {
+                Message.error("editor.loading_failed", this);
+            }
+        }
         createMerchants();
         root.addChildren(head, this.merchantsView);
     }
@@ -110,30 +143,30 @@ public class ShopEditor extends UIElement {
     }
 
     public void addMerchant(MerchantInfo merchant) {
-        merchants.add(merchant);
+        shopInfo.getMerchants().add(merchant);
         reloadMerchants();
     }
 
     public void updateMerchant(int index, MerchantInfo merchant) {
-        merchants.set(index, merchant);
+        shopInfo.getMerchants().set(index, merchant);
         reloadMerchants();
     }
 
     public void removeMerchant(int index) {
-        merchants.remove(index);
+        shopInfo.getMerchants().remove(index);
         reloadMerchants();
     }
 
     public List<MerchantInfo> getMerchants() {
-        return new ArrayList<>(merchants);
+        return new ArrayList<>(shopInfo.getMerchants());
     }
 
     public void reloadMerchants() {
         merchantsView.clearAllScrollViewChildren();
 
         // 重新添加所有商品
-        for (int i = 0; i < merchants.size(); i++) {
-            MerchantInfo merchantInfo = merchants.get(i);
+        for (int i = 0; i < shopInfo.getMerchants().size(); i++) {
+            MerchantInfo merchantInfo = shopInfo.getMerchants().get(i);
             int finalI = i;
             merchantsView.addScrollViewChild(createMerchant(merchantInfo, i)
                     .addEventListener(UIEvents.CLICK, event -> {
@@ -208,6 +241,26 @@ public class ShopEditor extends UIElement {
                 })
         );
         return merchant;
+    }
+
+    public void saveAsFile() {
+        if (!this.getMerchants().isEmpty()) {
+            String suffix = Shop.SUFFIX;
+            Dialog.showFileDialog("viscript_shop.editor.saveAs", new File(LDLib2.getAssetsDir(), ShopHelper.SHOP_PATH), false, Dialog.suffixFilter(suffix), (file) -> {
+                if (file != null && !file.isDirectory()) {
+                    if (!file.getName().endsWith(suffix)) {
+                        file = new File(file.getParentFile(), file.getName() + suffix);
+                    }
+
+                    try {
+                        CompoundTag fileData = this.shopInfo.serializeNBT(Platform.getFrozenRegistry());
+                        NbtIo.write(fileData, file.toPath());
+                        ShopHelper.cacheShopFile = file;
+                    } catch (Exception var5) {
+                    }
+                }
+            }).show(this);
+        }
     }
 
     private ItemSlot createItemSlot(ItemStack item, boolean isRenderBackgroundTexture) {

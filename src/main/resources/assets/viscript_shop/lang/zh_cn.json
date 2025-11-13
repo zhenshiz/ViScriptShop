@@ -3,7 +3,10 @@
   "command.target.entity.only": "此命令的目标对象应该是实体",
 
   "viscript_shop.editor.title": "编辑商店界面",
+  "viscript_shop.editor.file": "文件",
+  "viscript_shop.editor.load": "打开",
   "viscript_shop.editor.save": "保存",
+  "viscript_shop.editor.saveAs": "另存为",
   "viscript_shop.editor.add.merchant": "添加商品",
   "viscript_shop.editor.update.merchant": "编辑商品",
   "viscript_shop.editor.merchant.itemA": "交易物品A",
@@ -17,5 +20,6 @@
   "viscript_shop.editor.merchant.button.delete": "删除",
   "viscript_shop.selectItemDialog.title": "选择物品",
   "viscript_shop.message.item.empty": "交易物品A和交易物品B不能都为空",
-  "viscript_shop.message.itemResult.empty": "返回物品不能为空"
+  "viscript_shop.message.itemResult.empty": "返回物品不能为空",
+  "viscript_npc.message.saveSuccess": "保存成功"
 }

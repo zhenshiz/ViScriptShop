@@ -2,7 +2,10 @@
   "command.target.player.only": "The target of this command should be the a player",
   "command.target.entity.only": "The target of this command should be the an entity",
   "viscript_shop.editor.title": "Editor Shop",
+  "viscript_shop.editor.file": "file",
+  "viscript_shop.editor.load": "Load",
   "viscript_shop.editor.save": "Save",
+  "viscript_shop.editor.saveAs": "Save As",
   "viscript_shop.editor.add.merchant": "Add Merchant",
   "viscript_shop.editor.update.merchant": "Update Merchant",
   "viscript_shop.editor.merchant.itemA": "Update Merchant",
@@ -16,5 +19,6 @@
   "viscript_shop.editor.merchant.button.delete": "Delete",
   "viscript_shop.selectItemDialog.title": "Select Item",
   "viscript_shop.message.item.empty": "itemA和itemB不能都为空",
-  "viscript_shop.message.itemResult.empty": "返回物品不能为空"
+  "viscript_shop.message.itemResult.empty": "返回物品不能为空",
+  "viscript_npc.message.saveSuccess": "Save Success"
 }
