@@ -16,7 +16,9 @@ import java.util.List;
 public class ShopInfo implements IConfigurable, IPersistedSerializable {
     @Persisted
     @ReadOnlyManaged(serializeMethod = "writeMerchantInfo", deserializeMethod = "readMerchantInfo")
-    List<MerchantInfo> merchants = new ArrayList<>();
+    private List<MerchantInfo> merchants = new ArrayList<>();
+    @Persisted
+    private int stage = 0;
 
     private Tag writeMerchantInfo(List<MerchantInfo> value) {
         return IntTag.valueOf(value.size());

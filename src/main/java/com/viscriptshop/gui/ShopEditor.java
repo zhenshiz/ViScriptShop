@@ -20,20 +20,17 @@ import com.viscriptshop.gui.components.ShopEditorDialog;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.Shop;
 import com.viscriptshop.gui.data.ShopInfo;
-import com.viscriptshop.util.MenuUtil;
 import com.viscriptshop.util.ShopHelper;
+import com.viscriptshop.util.UIElementUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.appliedenergistics.yoga.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -71,9 +68,9 @@ public class ShopEditor extends UIElement {
             layout.setPadding(YogaEdge.TOP, 10);
             layout.setFlex(14);
         });
-        TreeBuilder.Menu menuBuilder = TreeBuilder.Menu.start().leaf("viscript_shop.editor.load", () -> {
+        TreeBuilder.Menu fileMenu = TreeBuilder.Menu.start().leaf("viscript_shop.editor.load", () -> {
             //打开本地文件
-            Dialog.showFileDialog("viscript_shop.editor.load", new File(LDLib2.getAssetsDir(), ShopHelper.SHOP_PATH), true, Dialog.suffixFilter(Shop.SUFFIX), file->{
+            Dialog.showFileDialog("viscript_shop.editor.load", new File(LDLib2.getAssetsDir(), ShopHelper.SHOP_PATH), true, Dialog.suffixFilter(Shop.SUFFIX), file -> {
                 if (file != null && file.exists()) {
                     try {
                         CompoundTag data = NbtIo.read(file.toPath());
@@ -102,8 +99,16 @@ public class ShopEditor extends UIElement {
                 this.saveAsFile();
             }
         }).leaf("viscript_shop.editor.saveAs", this::saveAsFile);
+
+        TreeBuilder.Menu toolMenu = TreeBuilder.Menu.start().leaf("viscript_shop.editor.setStage", () -> {
+            UIElementUtil.numberEditorDialog("viscript_shop.editor.setStage", 0, 0, Integer.MAX_VALUE, (value) -> {
+                this.shopInfo.setStage(value.intValue());
+                reloadMerchants();
+            }).show(this);
+        });
         head.addChildren(
-                MenuUtil.createMenuTab(menuBuilder, this, "viscript_shop.editor.file"),
+                UIElementUtil.createMenuTab(fileMenu, this, "viscript_shop.editor.file"),
+                UIElementUtil.createMenuTab(toolMenu, this, "viscript_shop.editor.tool"),
                 title,
                 new Button().setOnClick(event -> Minecraft.getInstance().setScreen(null)).setText("X").layout(layout -> layout.setFlex(1)))
         ;
@@ -157,16 +162,13 @@ public class ShopEditor extends UIElement {
         reloadMerchants();
     }
 
-    public List<MerchantInfo> getMerchants() {
-        return new ArrayList<>(shopInfo.getMerchants());
-    }
-
     public void reloadMerchants() {
         merchantsView.clearAllScrollViewChildren();
 
         // 重新添加所有商品
         for (int i = 0; i < shopInfo.getMerchants().size(); i++) {
             MerchantInfo merchantInfo = shopInfo.getMerchants().get(i);
+            if (merchantInfo.getStage() != shopInfo.getStage()) continue;
             int finalI = i;
             merchantsView.addScrollViewChild(createMerchant(merchantInfo, i)
                     .addEventListener(UIEvents.CLICK, event -> {
@@ -244,7 +246,7 @@ public class ShopEditor extends UIElement {
     }
 
     public void saveAsFile() {
-        if (!this.getMerchants().isEmpty()) {
+        if (!shopInfo.getMerchants().isEmpty()) {
             String suffix = Shop.SUFFIX;
             Dialog.showFileDialog("viscript_shop.editor.saveAs", new File(LDLib2.getAssetsDir(), ShopHelper.SHOP_PATH), false, Dialog.suffixFilter(suffix), (file) -> {
                 if (file != null && !file.isDirectory()) {

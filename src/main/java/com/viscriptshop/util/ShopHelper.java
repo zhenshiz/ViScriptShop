@@ -3,6 +3,7 @@ package com.viscriptshop.util;
 import com.lowdragmc.lowdraglib2.LDLib2;
 import com.lowdragmc.lowdraglib2.Platform;
 import com.viscriptshop.ViscriptShop;
+import com.viscriptshop.command.ShopCommand;
 import com.viscriptshop.gui.data.Shop;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
@@ -13,6 +14,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @ParametersAreNonnullByDefault
 public class ShopHelper {
@@ -37,9 +39,14 @@ public class ShopHelper {
         return useCache ? CACHE.computeIfAbsent(path, location -> loadShop(path)) : loadShop(path);
     }
 
+    public static Set<String> scanShopFiles() {
+        ShopCommand.shopFilesPath.clear();
+        return FileScanner.scanFilesWithSuffix(new File(LDLib2.getAssetsDir(), SHOP_PATH), Shop.SUFFIX);
+    }
+
     @Nullable
     private static Shop loadShop(String path) {
-        File file = new File(LDLib2.getAssetsDir().toString(), SHOP_PATH + path + Shop.SUFFIX);
+        File file = new File(LDLib2.getAssetsDir(), SHOP_PATH + path + Shop.SUFFIX);
         if (!file.exists()) {
             ViscriptShop.LOGGER.error("shop file {} not found", path);
             return null;

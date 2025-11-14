@@ -5,7 +5,6 @@ import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
 import com.mojang.logging.LogUtils;
 import com.viscriptshop.command.ICommand;
 import com.viscriptshop.gui.configurator.SyncAccessor;
-import com.viscriptshop.gui.data.Shop;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;

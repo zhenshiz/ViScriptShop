@@ -1,22 +1,66 @@
 package com.viscriptshop.util;
 
+import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
+import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Menu;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.lowdragmc.lowdraglib2.gui.util.TreeNode;
-import net.minecraft.network.chat.Component;
 import org.appliedenergistics.yoga.YogaEdge;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
-public class MenuUtil {
+public class UIElementUtil {
+    public static Dialog numberEditorDialog(String title, Number initial,
+                                            Number min, Number max, Consumer<Number> result) {
+        AtomicReference<Number> value = new AtomicReference<>(initial);
+        var dialog = new Dialog();
+        var numberConfigurator = new NumberConfigurator(
+                "",
+                value::get,
+                value::set,
+                initial,
+                false
+        );
+
+        // 设置范围
+        numberConfigurator.setRange(min, max);
+
+        // 根据初始值类型设置数字类型
+        if (initial instanceof Integer) {
+            numberConfigurator.setType(ConfigNumber.Type.INTEGER);
+        } else if (initial instanceof Float) {
+            numberConfigurator.setType(ConfigNumber.Type.FLOAT);
+        } else if (initial instanceof Double) {
+            numberConfigurator.setType(ConfigNumber.Type.DOUBLE);
+        } else if (initial instanceof Long) {
+            numberConfigurator.setType(ConfigNumber.Type.LONG);
+        }
+
+        dialog.setTitle(title);
+        dialog.addContent(numberConfigurator.layout(layout -> layout.setWidth(120)));
+
+        dialog.addButton(new Button()
+                .setOnClick(e -> {
+                    dialog.close();
+                    result.accept(value.get());
+                })
+                .setText("ldlib.gui.tips.confirm"));
+
+        return dialog;
+    }
+
     public static UIElement createMenuTab(TreeBuilder.Menu menu, @NotNull UIElement parent, String text) {
         return (new TextElement()).textStyle((textStyle) -> textStyle.adaptiveWidth(true).textAlignHorizontal(Horizontal.CENTER).textAlignVertical(Vertical.CENTER)).setText(text).layout((layout) -> {
             layout.setHeightPercent(100.0F);

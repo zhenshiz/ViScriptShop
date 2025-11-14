@@ -71,6 +71,7 @@ public class ShopEditorDialog extends Dialog {
         this.editingMerchantInfo.setItemResult(merchantInfo.getItemResult() != null ? merchantInfo.getItemResult().copy() : null);
         this.editingMerchantInfo.setXp(merchantInfo.getXp());
         this.editingMerchantInfo.setCommand(merchantInfo.getCommand());
+        this.editingMerchantInfo.setStage(merchantInfo.getStage());
 
         this.index = index;
     }
@@ -82,6 +83,7 @@ public class ShopEditorDialog extends Dialog {
         this.editingMerchantInfo.setItemResult(ItemStack.EMPTY);
         this.editingMerchantInfo.setXp(0);
         this.editingMerchantInfo.setCommand("");
+        this.editingMerchantInfo.setStage(0);
 
         setIsAdd(true);
     }
@@ -94,6 +96,7 @@ public class ShopEditorDialog extends Dialog {
         finalMerchant.setItemResult(editingMerchantInfo.getItemResult() != null ? editingMerchantInfo.getItemResult().copy() : null);
         finalMerchant.setXp(editingMerchantInfo.getXp());
         finalMerchant.setCommand(editingMerchantInfo.getCommand());
+        finalMerchant.setStage(editingMerchantInfo.getStage());
 
         if (isAdd) {
             this.shopEditor.addMerchant(finalMerchant);
