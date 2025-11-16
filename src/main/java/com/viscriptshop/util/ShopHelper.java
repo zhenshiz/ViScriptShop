@@ -5,13 +5,13 @@ import com.lowdragmc.lowdraglib2.Platform;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.command.ShopCommand;
 import com.viscriptshop.gui.data.Shop;
-import net.minecraft.nbt.NbtAccounter;
+import lombok.SneakyThrows;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +26,10 @@ public class ShopHelper {
         var count = CACHE.size();
         CACHE.clear();
         return count;
+    }
+
+    public static void removeCache(String path){
+        CACHE.remove(path);
     }
 
     @Nullable
@@ -45,14 +49,16 @@ public class ShopHelper {
     }
 
     @Nullable
+    @SneakyThrows
     private static Shop loadShop(String path) {
         File file = new File(LDLib2.getAssetsDir(), SHOP_PATH + path + Shop.SUFFIX);
         if (!file.exists()) {
             ViscriptShop.LOGGER.error("shop file {} not found", path);
             return null;
         }
-        try (var inputStream = new FileInputStream(file)) {
-            var tag = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap());
+        try {
+            CompoundTag tag = NbtIo.read(file.toPath());
+            if (tag == null) return null;
             var shop = new Shop();
             shop.setPath(path);
             shop.deserializeNBT(Platform.getFrozenRegistry(), tag);

@@ -2,26 +2,105 @@ package com.viscriptshop.util;
 
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
+import com.lowdragmc.lowdraglib2.configurator.ui.SearchComponentConfigurator;
 import com.lowdragmc.lowdraglib2.gui.ColorPattern;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.ItemStackTexture;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Menu;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.lowdragmc.lowdraglib2.gui.util.TreeNode;
+import com.lowdragmc.lowdraglib2.math.Size;
+import com.lowdragmc.lowdraglib2.utils.search.IResultHandler;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.appliedenergistics.yoga.YogaEdge;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class UIElementUtil {
+
+    public static SearchComponentConfigurator<Item> createItemSearchComponentConfigurator(String name, Supplier<String> getter, Consumer<String> setter, TagKey<Item> tag) {
+        SearchComponentConfigurator<Item> itemSearchComponentConfigurator = new SearchComponentConfigurator<>(name,
+                () -> {
+                    String id = getter.get();
+                    return id != null ? BuiltInRegistries.ITEM.get(ResourceLocation.parse(id)) : Items.AIR;
+                },
+                item -> {
+                    ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
+                    setter.accept(key.toString());
+                },
+                BuiltInRegistries.ITEM.get(ResourceLocation.parse(
+                        getter.get() != null ? getter.get() : Items.AIR.toString()
+                )),
+                false,
+                (word, searchHandler) -> {
+                    String lowerWord = word.toLowerCase();
+                    for (var key : BuiltInRegistries.ITEM.keySet()) {
+                        if (Thread.currentThread().isInterrupted()) return;
+                        Item item = BuiltInRegistries.ITEM.get(key);
+                        if (tag != null && !item.getDefaultInstance().is(tag)) continue;
+                        if (key.toString().toLowerCase().contains(lowerWord) || Component.translatable(item.getDescriptionId()).getString().toLowerCase().contains(lowerWord)) {
+                            ((IResultHandler<Item>) searchHandler).acceptResult(BuiltInRegistries.ITEM.get(key));
+                        }
+                    }
+                },
+                value -> BuiltInRegistries.ITEM.getKey(value).toString(),
+                value -> ""
+        );
+        itemSearchComponentConfigurator.searchComponent.setCandidateUIProvider(UIElementProvider.iconText(
+                ItemStackTexture::new,
+                item -> Component.translatable(item.getDescriptionId())
+        ));
+        return itemSearchComponentConfigurator;
+    }
+
+    public static SearchComponentConfigurator<Item> createItemSearchComponentConfigurator(String name, Supplier<String> getter, Consumer<String> setter) {
+        return createItemSearchComponentConfigurator(name, getter, setter, null);
+    }
+
+    public static ItemSlot createItemSlot(ItemStack item, boolean isRenderBackgroundTexture) {
+        return (ItemSlot) new ItemSlot().setItem(item)
+                .slotStyle(slotStyle -> {
+                    if (!isRenderBackgroundTexture) slotStyle.hoverOverlay(new ColorRectTexture(0));
+                })
+                .layout(layout -> {
+                    layout.setWidth(18);
+                    layout.setHeight(18);
+                })
+                .style(style -> {
+                    if (!isRenderBackgroundTexture) style.backgroundTexture(null);
+                });
+    }
+
+    public static ModularUI createUI(UIElement root) {
+        return new ModularUI(UI.of(root, size -> {
+            int width = size.width;
+            int height = size.height;
+
+            float fontSize = Math.max(12, height * 0.04f);
+            for (UIElement child : root.getChildren()) {
+                if (child instanceof Label label) label.getTextStyle().fontSize(fontSize);
+            }
+            return Size.of(width, height);
+        }));
+    }
+
     public static Dialog numberEditorDialog(String title, Number initial,
                                             Number min, Number max, Consumer<Number> result) {
         AtomicReference<Number> value = new AtomicReference<>(initial);

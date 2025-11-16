@@ -8,14 +8,14 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
-public record OpenShopEditor() implements CustomPacketPayload {
-    public static final Type<OpenShopEditor> TYPE = new Type<>(ViscriptShop.id("open_shop_editor"));
-    public static final StreamCodec<FriendlyByteBuf, OpenShopEditor> CODEC = StreamCodec.ofMember(
-            OpenShopEditor::write,
-            OpenShopEditor::new
+public record OpenShopEditorPayload() implements CustomPacketPayload {
+    public static final Type<OpenShopEditorPayload> TYPE = new Type<>(ViscriptShop.id("open_shop_editor"));
+    public static final StreamCodec<FriendlyByteBuf, OpenShopEditorPayload> CODEC = StreamCodec.ofMember(
+            OpenShopEditorPayload::write,
+            OpenShopEditorPayload::new
     );
 
-    public OpenShopEditor(FriendlyByteBuf friendlyByteBuf) {
+    public OpenShopEditorPayload(FriendlyByteBuf friendlyByteBuf) {
         this();
     }
 
@@ -23,7 +23,7 @@ public record OpenShopEditor() implements CustomPacketPayload {
     }
 
 
-    public static void execute(OpenShopEditor payload, IPayloadContext context) {
+    public static void execute(OpenShopEditorPayload payload, IPayloadContext context) {
         ViScriptShopUtil.clientOpenNpcEditor();
     }
 

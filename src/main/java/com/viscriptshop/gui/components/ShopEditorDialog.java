@@ -66,9 +66,9 @@ public class ShopEditorDialog extends Dialog {
     public void updateShow(UIElement parent, MerchantInfo merchantInfo, int index) {
         super.show(parent);
         setIsAdd(false);
-        this.editingMerchantInfo.setItemA(merchantInfo.getItemA() != null ? merchantInfo.getItemA().copy() : null);
-        this.editingMerchantInfo.setItemB(merchantInfo.getItemB() != null ? merchantInfo.getItemB().copy() : null);
-        this.editingMerchantInfo.setItemResult(merchantInfo.getItemResult() != null ? merchantInfo.getItemResult().copy() : null);
+        this.editingMerchantInfo.setItemA(merchantInfo.getItemA() != null ? merchantInfo.getItemA().copy() : ItemStack.EMPTY);
+        this.editingMerchantInfo.setItemB(merchantInfo.getItemB() != null ? merchantInfo.getItemB().copy() : ItemStack.EMPTY);
+        this.editingMerchantInfo.setItemResult(merchantInfo.getItemResult() != null ? merchantInfo.getItemResult().copy() : ItemStack.EMPTY);
         this.editingMerchantInfo.setXp(merchantInfo.getXp());
         this.editingMerchantInfo.setCommand(merchantInfo.getCommand());
         this.editingMerchantInfo.setStage(merchantInfo.getStage());
@@ -91,9 +91,9 @@ public class ShopEditorDialog extends Dialog {
     private void applyChanges() {
         // 创建最终的深拷贝用于保存
         MerchantInfo finalMerchant = new MerchantInfo();
-        finalMerchant.setItemA(editingMerchantInfo.getItemA() != null ? editingMerchantInfo.getItemA().copy() : null);
-        finalMerchant.setItemB(editingMerchantInfo.getItemB() != null ? editingMerchantInfo.getItemB().copy() : null);
-        finalMerchant.setItemResult(editingMerchantInfo.getItemResult() != null ? editingMerchantInfo.getItemResult().copy() : null);
+        finalMerchant.setItemA(editingMerchantInfo.getItemA() != null ? editingMerchantInfo.getItemA().copy() : ItemStack.EMPTY);
+        finalMerchant.setItemB(editingMerchantInfo.getItemB() != null ? editingMerchantInfo.getItemB().copy() : ItemStack.EMPTY);
+        finalMerchant.setItemResult(editingMerchantInfo.getItemResult() != null ? editingMerchantInfo.getItemResult().copy() : ItemStack.EMPTY);
         finalMerchant.setXp(editingMerchantInfo.getXp());
         finalMerchant.setCommand(editingMerchantInfo.getCommand());
         finalMerchant.setStage(editingMerchantInfo.getStage());

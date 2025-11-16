@@ -2,10 +2,7 @@ package com.viscriptshop.gui;
 
 import com.lowdragmc.lowdraglib2.LDLib2;
 import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
@@ -14,7 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
-import com.lowdragmc.lowdraglib2.math.Size;
+import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.gui.components.ShopEditorDialog;
 import com.viscriptshop.gui.data.MerchantInfo;
@@ -26,7 +23,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 import org.appliedenergistics.yoga.*;
 
 import java.io.File;
@@ -88,12 +84,7 @@ public class ShopEditor extends UIElement {
             //判断缓存文件是否存在
             if (ShopHelper.cacheShopFile != null && ShopHelper.cacheShopFile.exists()) {
                 //直接更新文件
-                CompoundTag fileData = this.shopInfo.serializeNBT(Platform.getFrozenRegistry());
-                try {
-                    NbtIo.write(fileData, ShopHelper.cacheShopFile.toPath());
-                } catch (IOException e) {
-                }
-                Message.success("viscript_npc.message.saveSuccess", this);
+                this.saveFile();
             } else {
                 //另存为
                 this.saveAsFile();
@@ -132,19 +123,6 @@ public class ShopEditor extends UIElement {
         }
         createMerchants();
         root.addChildren(head, this.merchantsView);
-    }
-
-    public ModularUI createUI() {
-        return new ModularUI(UI.of(this, size -> {
-            int width = size.width;
-            int height = size.height;
-
-            float fontSize = Math.max(12, height * 0.04f);
-            for (UIElement child : this.getChildren()) {
-                if (child instanceof Label label) label.getTextStyle().fontSize(fontSize);
-            }
-            return Size.of(width, height);
-        })).shouldCloseOnEsc(false);
     }
 
     public void addMerchant(MerchantInfo merchant) {
@@ -221,9 +199,9 @@ public class ShopEditor extends UIElement {
             layout.setFlexDirection(YogaFlexDirection.ROW);
             layout.setAlignItems(YogaAlign.CENTER);
         });
-        ItemSlot itemASlot = createItemSlot(merchantInfo.getItemA(), false);
-        ItemSlot itemBSlot = createItemSlot(merchantInfo.getItemB(), false);
-        ItemSlot resultItemSlot = createItemSlot(merchantInfo.getItemResult(), true);
+        ItemSlot itemASlot = UIElementUtil.createItemSlot(merchantInfo.getItemA(), false);
+        ItemSlot itemBSlot = UIElementUtil.createItemSlot(merchantInfo.getItemB(), false);
+        ItemSlot resultItemSlot = UIElementUtil.createItemSlot(merchantInfo.getItemResult(), true);
         merchant.addChildren(itemASlot, itemBSlot,
                 new UIElement().style(style -> style.backgroundTexture(Icons.RIGHT_ARROW_NO_BAR_S_LIGHT)).layout(layout -> {
                     layout.setWidth(6);
@@ -245,6 +223,16 @@ public class ShopEditor extends UIElement {
         return merchant;
     }
 
+    public void saveFile() {
+        try {
+            CompoundTag fileData = this.shopInfo.serializeNBT(Platform.getFrozenRegistry());
+            NbtIo.write(fileData, ShopHelper.cacheShopFile.toPath());
+            Message.success("viscript_shop.message.saveSuccess", this);
+        } catch (Exception exception) {
+            ViscriptShop.LOGGER.error("Failed to save shop file : {} \n {}", ShopHelper.cacheShopFile, exception.toString());
+        }
+    }
+
     public void saveAsFile() {
         if (!shopInfo.getMerchants().isEmpty()) {
             String suffix = Shop.SUFFIX;
@@ -258,24 +246,11 @@ public class ShopEditor extends UIElement {
                         CompoundTag fileData = this.shopInfo.serializeNBT(Platform.getFrozenRegistry());
                         NbtIo.write(fileData, file.toPath());
                         ShopHelper.cacheShopFile = file;
-                    } catch (Exception var5) {
+                    } catch (Exception exception) {
+                        ViscriptShop.LOGGER.error("Failed to saveAs shop file : {} \n {}", file, exception.toString());
                     }
                 }
             }).show(this);
         }
-    }
-
-    private ItemSlot createItemSlot(ItemStack item, boolean isRenderBackgroundTexture) {
-        return (ItemSlot) new ItemSlot().setItem(item)
-                .slotStyle(slotStyle -> {
-                    if (!isRenderBackgroundTexture) slotStyle.hoverOverlay(new ColorRectTexture(0));
-                })
-                .layout(layout -> {
-                    layout.setWidth(15);
-                    layout.setHeight(15);
-                })
-                .style(style -> {
-                    if (!isRenderBackgroundTexture) style.backgroundTexture(null);
-                });
     }
 }

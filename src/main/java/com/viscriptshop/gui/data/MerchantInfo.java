@@ -4,13 +4,21 @@ import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
+import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.mojang.serialization.Codec;
+import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 
 @Data
 @AllArgsConstructor
 public class MerchantInfo implements IConfigurable, IPersistedSerializable {
+    public static final StreamCodec<ByteBuf, MerchantInfo> STREAM_CODEC;
+    public static final Codec<MerchantInfo> CODEC;
+
     @Configurable(name = "viscript_shop.editor.merchant.itemA")
     private ItemStack itemA;
     @Configurable(name = "viscript_shop.editor.merchant.itemB")
@@ -26,6 +34,11 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     @ConfigNumber(range = {0, Integer.MAX_VALUE})
     private int stage;
 
+    static {
+        CODEC = PersistedParser.createCodec(MerchantInfo::new);
+        STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
+    }
+
     public MerchantInfo() {
         this.itemA = ItemStack.EMPTY;
         this.itemB = ItemStack.EMPTY;
@@ -33,15 +46,6 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
         this.xp = 0;
         this.command = "";
         this.stage = 0;
-    }
-
-    public void defaultValue() {
-        this.setItemA(ItemStack.EMPTY);
-        this.setItemB(ItemStack.EMPTY);
-        this.setItemResult(ItemStack.EMPTY);
-        this.setXp(0);
-        this.setCommand("");
-        this.setStage(0);
     }
 
     public MerchantInfo itemA(ItemStack itemA) {

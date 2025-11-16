@@ -18,19 +18,19 @@ public class Shop implements INBTSerializable<CompoundTag> {
     @Nullable
     @Setter
     private String path;
-    public MerchantInfo merchantInfo;
+    public ShopInfo shopInfo;
 
     public Shop() {
-        merchantInfo = new MerchantInfo();
+        shopInfo = new ShopInfo();
     }
 
     @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
-        return merchantInfo.serializeNBT(provider);
+        return shopInfo.serializeNBT(provider);
     }
 
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
-        merchantInfo.deserializeNBT(provider, tag);
+        shopInfo.deserializeNBT(provider, tag);
     }
 }
