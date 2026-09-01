@@ -2,9 +2,10 @@ package com.viscriptshop.command;
 
 import com.lowdragmc.lowdraglib2.LDLib2;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -14,6 +15,7 @@ import com.viscript_lib.register.ICommand;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.data.*;
 import com.viscriptshop.util.ShopHelper;
+import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
@@ -94,26 +96,26 @@ public class ShopCommand implements ICommand {
                 .then(Commands.literal("money")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("money", IntegerArgumentType.integer())
+                                        .then(Commands.argument("money", DoubleArgumentType.doubleArg(0, Double.MAX_VALUE))
                                                 .executes(ctx -> {
                                                     ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
-                                                    int money = IntegerArgumentType.getInteger(ctx, "money");
+                                                    double money = DoubleArgumentType.getDouble(ctx, "money");
                                                     ViScriptShopServerUtil.addMoney(player, money);
-                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.add", player.getDisplayName(), money, ViScriptShopServerUtil.getMoney(player)), true);
-                                                    return money;
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.add", player.getDisplayName(), MoneyUtil.format(money), MoneyUtil.format(ViScriptShopServerUtil.getMoney(player))), true);
+                                                    return Command.SINGLE_SUCCESS;
                                                 })
                                         )
                                 )
                         )
                         .then(Commands.literal("remove")
                                 .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("money", IntegerArgumentType.integer())
+                                        .then(Commands.argument("money", DoubleArgumentType.doubleArg(0, Double.MAX_VALUE))
                                                 .executes(ctx -> {
                                                     ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
-                                                    int money = IntegerArgumentType.getInteger(ctx, "money");
-                                                    int removeMoney = ViScriptShopServerUtil.removeMoney(player, money);
-                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.remove", player.getDisplayName(), removeMoney, ViScriptShopServerUtil.getMoney(player)), true);
-                                                    return removeMoney;
+                                                    double money = DoubleArgumentType.getDouble(ctx, "money");
+                                                    double removeMoney = ViScriptShopServerUtil.removeMoney(player, money);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.remove", player.getDisplayName(), MoneyUtil.format(removeMoney), MoneyUtil.format(ViScriptShopServerUtil.getMoney(player))), true);
+                                                    return Command.SINGLE_SUCCESS;
                                                 })
                                         )
                                 )
@@ -122,24 +124,24 @@ public class ShopCommand implements ICommand {
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> {
                                             ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
-                                            int money = ViScriptShopServerUtil.getMoney(player);
-                                            ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.get", player.getDisplayName(), money), true);
-                                            return money;
+                                            double money = ViScriptShopServerUtil.getMoney(player);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.get", player.getDisplayName(), MoneyUtil.format(money)), true);
+                                            return Command.SINGLE_SUCCESS;
                                         })
                                 )
                         )
                         .then(Commands.literal("pay")
                                 .then(Commands.argument("player1", EntityArgument.player())
                                         .then(Commands.argument("player2", EntityArgument.player())
-                                                .then(Commands.argument("money", IntegerArgumentType.integer())
+                                                .then(Commands.argument("money", DoubleArgumentType.doubleArg(0, Double.MAX_VALUE))
                                                         .executes(ctx -> {
                                                             ServerPlayer player1 = EntityArgument.getPlayer(ctx, "player1");
                                                             ServerPlayer player2 = EntityArgument.getPlayer(ctx, "player2");
-                                                            int money = IntegerArgumentType.getInteger(ctx, "money");
-                                                            int removeMoney = ViScriptShopServerUtil.removeMoney(player1, money);
+                                                            double money = DoubleArgumentType.getDouble(ctx, "money");
+                                                            double removeMoney = ViScriptShopServerUtil.removeMoney(player1, money);
                                                             ViScriptShopServerUtil.addMoney(player2, removeMoney);
-                                                            ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.pay", player1.getDisplayName(), removeMoney, player2.getDisplayName()), true);
-                                                            return removeMoney;
+                                                            ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.pay", player1.getDisplayName(), MoneyUtil.format(removeMoney), player2.getDisplayName()), true);
+                                                            return Command.SINGLE_SUCCESS;
                                                         })
                                                 )
                                         )

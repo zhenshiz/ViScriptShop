@@ -253,6 +253,7 @@ public class UIElementUtil {
                 }).layout(layout -> {
                     layout.heightPercent(100);
                 });
+        label.addClass("shop-category-label");
         UIElement name = new UIElement().layout(layout -> {
                     layout.flex(8);
                     layout.heightPercent(100);
@@ -270,6 +271,7 @@ public class UIElementUtil {
                 }
             }
         }
+        icon.addClass("shop-category-icon");
         category.addChildren(icon, name);
         return category;
     }

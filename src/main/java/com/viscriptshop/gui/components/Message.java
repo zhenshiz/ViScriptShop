@@ -7,9 +7,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
-import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.math.interpolate.Eases;
 import com.viscriptshop.ViscriptShop;
+import com.viscriptshop.gui.components.theme.ShopTheme;
 import dev.vfyjxf.taffy.style.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -29,6 +29,9 @@ public class Message extends UIElement {
 
     public Message(UIElement parent) {
         this.parent = parent;
+        ShopTheme theme = ShopTheme.current();
+        this.setId("shop_message");
+        this.addClasses("shop-message", theme.styleClass());
         this.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.flexDirection(FlexDirection.ROW);
@@ -38,7 +41,7 @@ public class Message extends UIElement {
             layout.top(10);
             layout.justifyContent(AlignContent.CENTER);
             layout.alignItems(AlignItems.CENTER);
-        }).style(style -> style.backgroundTexture(Sprites.BORDER));
+        }).style(style -> style.backgroundTexture(theme.messageBackground()));
         this.icon = new UIElement().layout(layout -> {
             layout.width(8);
             layout.height(8);
@@ -51,6 +54,7 @@ public class Message extends UIElement {
             layout.marginLeft(3);
             layout.marginRight(3);
         });
+        this.label.setId("shop_message_text");
         this.addChildren(
                 icon,
                 label

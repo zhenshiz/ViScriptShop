@@ -75,22 +75,31 @@ public class ViscriptShop {
         return isModLoaded("beyonddimensions");
     }
 
-    //jei
+    // JEI 兼容
     public static boolean isJEILoaded() {
         return isModLoaded("jei");
     }
 
-    //Just Enough Characters
+    // Just Enough Characters 兼容
     public static boolean isJECharactersLoaded() {
         return isModLoaded("jecharacters");
     }
 
-    //FtbLibrary
+    // FTB Library 兼容
     public static boolean isFtbLibraryLoaded() {
         return isModLoaded("ftblibrary");
     }
 
-    //Lightmans Currency
+    /**
+     * 检查当前运行环境是否安装了 FTB Quests。
+     *
+     * @return 安装 FTB Quests 时返回 {@code true}
+     */
+    public static boolean isFtbQuestsLoaded() {
+        return isModLoaded("ftbquests");
+    }
+
+    // Lightman's Currency 兼容
     public static boolean isLightmansCurrencyLoaded() {
         return isModLoaded("lightmanscurrency");
     }
@@ -100,7 +109,7 @@ public class ViscriptShop {
         return isModLoaded("confluence");
     }
 
-    //Magic Coins
+    // Magic Coins 兼容
     public static boolean isMagicCoinsLoaded() {
         return isModLoaded("magic_coins");
     }

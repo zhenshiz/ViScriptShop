@@ -8,6 +8,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.Event;
 import net.neoforged.bus.api.ICancellableEvent;
 
+/**
+ * 表示服务端商店购买流程事件。
+ *
+ * <p>事件监听器属于 Minecraft 运行时边界，通常应通过
+ * {@link AggregatedResources#getItems()} 和
+ * {@link AggregatedResources.ItemEntry#getItemStack()} 获取原版物品堆。只有需要检查
+ * 缺失 ID 或无损转发序列化数据时，才使用对应的 {@code getSerialized...} 方法。
+ */
 @Getter
 @AllArgsConstructor
 public class ShopServerEvent extends Event {

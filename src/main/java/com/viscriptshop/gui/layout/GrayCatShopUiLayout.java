@@ -84,10 +84,8 @@ public final class GrayCatShopUiLayout implements ShopUiLayout {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
-        // The seven-pixel cat-theme scroller needs to sit beside the cat-shaped
-        // selected entry instead of leaning into its right-hand "eye" detail.
-        // Keep the total horizontal margin unchanged so the category viewport
-        // does not resize when the scroller appears.
+        // 灰猫主题的滚动条宽七像素，需要放在猫形选中项旁边，避免碰到其右侧的“猫眼”装饰。
+        // 保持水平总边距不变，避免滚动条出现时改变分类视口的宽度。
         elements.categoryView().verticalScroller.layout(layout -> {
             layout.marginLeft(2);
             layout.marginRight(1);
@@ -161,8 +159,7 @@ public final class GrayCatShopUiLayout implements ShopUiLayout {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
-        // The merchant body includes the one-pixel frame from the theme image.
-        // Inset the scroller so its detached arrow sprites stay inside that frame.
+        // 商品主体包含主题图片的一像素边框；将滚动条向内缩进，确保拆分后的箭头贴图位于边框内。
         elements.merchantsView().verticalScroller.layout(layout -> {
             layout.marginTop(SCROLLER_TOP_INSET);
             layout.marginBottom(2);
@@ -201,7 +198,8 @@ public final class GrayCatShopUiLayout implements ShopUiLayout {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
-        absolute(elements.consumptionTitle(), 9, 99, 112, 14);
+        absolute(elements.consumptionTitle(), 9, 99, 94, 14);
+        absolute(elements.outputTargetButton(), 104, 99, 14, 14);
         absolute(elements.consumptionView(), 7, 113, 114, 82);
         elements.consumptionView().viewPort.getLayout().paddingAll(3);
         elements.consumptionView().viewPort.getLayout().paddingTop(6);
@@ -223,6 +221,7 @@ public final class GrayCatShopUiLayout implements ShopUiLayout {
                 elements.shoppingCartTitle(),
                 shoppingCart,
                 elements.consumptionTitle(),
+                elements.outputTargetButton(),
                 elements.consumptionView(),
                 summaryButtons,
                 elements.buyButton()

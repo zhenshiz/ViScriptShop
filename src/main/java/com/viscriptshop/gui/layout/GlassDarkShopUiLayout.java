@@ -194,7 +194,8 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
 
         UIElement shoppingCart = new UIElement().layout(layout -> {
             layout.widthPercent(100);
-            layout.heightPercent(39);
+            layout.flex(11);
+            layout.minHeight(0);
         }).style(style -> style.backgroundTexture(theme.shoppingCartPanel()))
                 .addChild(elements.shoppingCartView());
         elements.shoppingCartView().layout(layout -> {
@@ -204,22 +205,48 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
 
         elements.consumptionView().layout(layout -> {
             layout.widthPercent(100);
-            layout.heightPercent(35);
+            layout.flex(10);
+            layout.minHeight(0);
         });
         elements.shoppingCartTitle().textStyle(textStyle -> textStyle.adaptiveHeight(true));
-        elements.shoppingCartTitle().layout(layout -> layout.marginLeft(3));
-        elements.consumptionTitle().textStyle(textStyle -> textStyle.adaptiveHeight(true));
-        elements.consumptionTitle().layout(layout -> layout.marginLeft(3));
+        elements.shoppingCartTitle().layout(layout -> {
+            layout.marginLeft(3);
+            layout.flexShrink(0);
+        });
+        elements.consumptionTitle().textStyle(textStyle -> textStyle
+                .textAlignVertical(Vertical.CENTER));
+        elements.consumptionTitle().layout(layout -> {
+            layout.flex(1);
+            layout.heightPercent(100);
+            layout.marginLeft(3);
+        });
+        elements.outputTargetButton().layout(layout -> {
+            layout.width(14);
+            layout.height(14);
+            layout.marginRight(3);
+            layout.flexShrink(0);
+        });
+        UIElement consumptionHeader = new UIElement().layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(14);
+            layout.flexShrink(0);
+            layout.flexDirection(FlexDirection.ROW);
+            layout.alignItems(AlignItems.CENTER);
+        }).addChildren(elements.consumptionTitle(), elements.outputTargetButton());
 
         UIElement summaryButtons = new UIElement().layout(layout -> {
             layout.marginTop(5);
             layout.marginBottom(2);
+            layout.flexShrink(0);
             layout.flexDirection(FlexDirection.ROW);
             layout.justifyContent(AlignContent.SPACE_BETWEEN);
         }).addChildren(elements.stashButton(), elements.clearButton());
         elements.stashButton().layout(layout -> layout.widthPercent(45));
         elements.clearButton().layout(layout -> layout.widthPercent(45));
-        elements.buyButton().layout(layout -> layout.widthPercent(100));
+        elements.buyButton().layout(layout -> {
+            layout.widthPercent(100);
+            layout.flexShrink(0);
+        });
 
         UIElement body = new UIElement().layout(layout -> {
             layout.widthPercent(100);
@@ -230,7 +257,7 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
                 .addChildren(
                         elements.shoppingCartTitle(),
                         shoppingCart,
-                        elements.consumptionTitle(),
+                        consumptionHeader,
                         elements.consumptionView(),
                         summaryButtons,
                         elements.buyButton()

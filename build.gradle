@@ -166,12 +166,16 @@ dependencies {
     implementation "maven.modrinth:sophisticated-backpacks:${sophisticated_backpacks_version}"
     implementation "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
     //超越维度
-    implementation "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
+    runtimeOnly "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
     //ftb
     compileOnly "curse.maven:ftb-quests-forge-289412:7324136"
     compileOnly "curse.maven:ftb-library-forge-404465:7312258"
     compileOnly "curse.maven:ftb-teams-forge-404468:7369021"
     compileOnly "curse.maven:architectury-api-419699:5786327"
+    runtimeOnly "curse.maven:ftb-quests-forge-289412:7324136"
+    runtimeOnly "curse.maven:ftb-library-forge-404465:7312258"
+    runtimeOnly "curse.maven:ftb-teams-forge-404468:7369021"
+    runtimeOnly "curse.maven:architectury-api-419699:5786327"
     //Lightman's Currency
     implementation "maven.modrinth:lightmans-currency:${lightmans_currency_version}"
     //汇流来世

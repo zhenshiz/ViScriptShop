@@ -219,11 +219,11 @@ public class ViScriptShopServerUtil {
     }
 
     @Info("获取玩家钱")
-    public static int getMoney(ServerPlayer player) {
+    public static double getMoney(ServerPlayer player) {
         if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            return (int) SGEconomyApi.getBalance(player);
+            return MoneyUtil.normalize(SGEconomyApi.getBalance(player));
         }
-        return player.getData(ShopRegistries.MONEY).getMoney();
+        return MoneyUtil.normalize(player.getData(ShopRegistries.MONEY).getMoney());
     }
 
     @Info("获取玩家阶段标记")
@@ -281,29 +281,29 @@ public class ViScriptShopServerUtil {
     }
 
     @Info("设置玩家钱")
-    public static void setMoney(ServerPlayer player, int money) {
+    public static void setMoney(ServerPlayer player, double money) {
+        double normalized = MoneyUtil.normalize(money);
         if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            SGEconomyApi.setBalance(player, money);
+            SGEconomyApi.setBalance(player, normalized);
         }
         ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
-        data.setMoney(money);
+        data.setMoney(normalized);
         player.setData(ShopRegistries.MONEY, data);
     }
 
     @Info("给玩家钱")
-    public static void addMoney(ServerPlayer player, int money) {
-        setMoney(player, getMoney(player) + money);
+    public static void addMoney(ServerPlayer player, double money) {
+        if (MoneyUtil.isPositive(money)) {
+            setMoney(player, MoneyUtil.add(getMoney(player), money));
+        }
     }
 
     @Info("扣除玩家钱")
-    public static int removeMoney(ServerPlayer player, int money) {
-        int playerMoney = getMoney(player);
-        if (money > playerMoney) {
-            setMoney(player, 0);
-            return playerMoney;
-        } else {
-            setMoney(player, playerMoney - money);
-            return money;
-        }
+    public static double removeMoney(ServerPlayer player, double money) {
+        double requested = MoneyUtil.normalize(money);
+        double playerMoney = getMoney(player);
+        double removed = Math.min(requested, playerMoney);
+        setMoney(player, MoneyUtil.subtract(playerMoney, removed));
+        return removed;
     }
 }

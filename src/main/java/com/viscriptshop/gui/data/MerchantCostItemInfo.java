@@ -4,6 +4,7 @@ import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
+import com.viscript_lib.util.item.ViScriptItemStack;
 import io.netty.buffer.ByteBuf;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -46,7 +47,21 @@ public class MerchantCostItemInfo extends MerchantItemInfo {
     public MerchantCostItemInfo(ItemStack item,
                                 MerchantItemDisplay display,
                                 ItemMatchRule matchRule) {
-        super(item, display);
+        super(new ViScriptItemStack(item == null ? ItemStack.EMPTY : item), display);
+        this.matchRule = matchRule;
+    }
+
+    /**
+     * 使用不经过注册表解析的容错物品数据创建交易成本。
+     *
+     * @param item 容错物品数据
+     * @param display 只影响客户端图标的展示配置
+     * @param matchRule 库存操作使用的组件匹配规则
+     */
+    public MerchantCostItemInfo(ViScriptItemStack item,
+                                MerchantItemDisplay display,
+                                ItemMatchRule matchRule) {
+        super(item == null ? new ViScriptItemStack() : item, display);
         this.matchRule = matchRule;
     }
 

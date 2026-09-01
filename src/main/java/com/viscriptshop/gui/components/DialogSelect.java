@@ -44,7 +44,7 @@ public class DialogSelect extends Dialog {
             this.contentContainer.addChildren(selector);
         }
 
-        //bottom
+        // 底部区域
         Button confirmButton = new Button()
                 .setOnClick(event -> RPCPacketDistributor.rpcToServer(C2SPayload.OPEN_SHOP_UI_C2S, selector.getValue(), "", ""))
                 .setText("ldlib.gui.tips.confirm");

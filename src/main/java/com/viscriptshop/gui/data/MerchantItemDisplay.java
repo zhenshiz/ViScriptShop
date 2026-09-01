@@ -2,7 +2,6 @@ package com.viscriptshop.gui.data;
 
 import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.ConfiguratorParser;
-import com.lowdragmc.lowdraglib2.configurator.accessors.ItemStackAccessor;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSelector;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
@@ -12,6 +11,8 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
+import com.viscript_lib.gui.configurator.ViScriptItemStackAccessor;
+import com.viscript_lib.util.item.ViScriptItemStack;
 import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,7 +33,6 @@ import java.util.HashMap;
  * 物品校验、库存统计或物品扣除。
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class MerchantItemDisplay implements IConfigurable, IPersistedSerializable {
     public static final StreamCodec<ByteBuf, MerchantItemDisplay> STREAM_CODEC;
@@ -53,17 +53,33 @@ public class MerchantItemDisplay implements IConfigurable, IPersistedSerializabl
 
     /** {@link RenderMode#ITEM_RENDER} 使用的替代渲染物品。 */
     @Persisted
-    private ItemStack renderItem = ItemStack.EMPTY;
+    private ViScriptItemStack renderItem = new ViScriptItemStack();
 
     static {
         CODEC = PersistedParser.createCodec(MerchantItemDisplay::new);
         STREAM_CODEC = PersistedParser.createStreamCodec(MerchantItemDisplay::new);
     }
 
+    /**
+     * 创建商品图标展示配置。
+     *
+     * @param renderMode 图标展示方式
+     * @param resourcePath 资源图片路径
+     * @param resourceName 资源图片悬浮名称
+     * @param renderItem 替代渲染物品
+     */
+    public MerchantItemDisplay(RenderMode renderMode, String resourcePath, String resourceName,
+                               ItemStack renderItem) {
+        this.renderMode = renderMode == null ? RenderMode.ITEM : renderMode;
+        this.resourcePath = resourcePath == null ? "" : resourcePath;
+        this.resourceName = resourceName == null ? "" : resourceName;
+        setRenderItem(renderItem);
+    }
+
     @Override
     public void buildConfigurator(ConfiguratorGroup father) {
         renderMode = resolvedRenderMode();
-        renderItem = resolvedRenderItem();
+        getSerializedRenderItem();
         resourcePath = resourcePath == null ? "" : resourcePath;
         resourceName = resourceName == null ? "" : resourceName;
         addFieldConfigurator(father, "renderMode")
@@ -85,7 +101,55 @@ public class MerchantItemDisplay implements IConfigurable, IPersistedSerializabl
      * @return 非 {@code null} 的替代渲染物品堆
      */
     public ItemStack resolvedRenderItem() {
-        return renderItem == null ? ItemStack.EMPTY : renderItem;
+        return getSerializedRenderItem().toItemStack();
+    }
+
+    /**
+     * 获取供界面渲染使用的替代物品副本。
+     *
+     * @return 已解析的原版物品堆或缺失物品占位符
+     */
+    public ItemStack getRenderItem() {
+        return resolvedRenderItem();
+    }
+
+    /**
+     * 获取替代图标的容错持久化数据。
+     *
+     * @return 非 {@code null} 的容错物品数据
+     */
+    public ViScriptItemStack getSerializedRenderItem() {
+        if (renderItem == null) {
+            renderItem = new ViScriptItemStack();
+        }
+        return renderItem;
+    }
+
+    /**
+     * 替换替代图标的容错持久化数据。
+     *
+     * @param renderItem 容错物品数据；传入 {@code null} 时使用空物品
+     */
+    public void setSerializedRenderItem(ViScriptItemStack renderItem) {
+        this.renderItem = renderItem == null ? new ViScriptItemStack() : renderItem;
+    }
+
+    /**
+     * 使用原版物品堆替换图标数据。
+     *
+     * @param renderItem 原版物品堆；传入 {@code null} 时使用空物品
+     */
+    public void setRenderItem(ItemStack renderItem) {
+        setSerializedRenderItem(new ViScriptItemStack(renderItem == null ? ItemStack.EMPTY : renderItem));
+    }
+
+    /**
+     * 判断替代图标是否引用了当前未注册的物品。
+     *
+     * @return 使用缺失物品占位符时返回 {@code true}
+     */
+    public boolean isMissingRenderItem() {
+        return getSerializedRenderItem().isMissingItem();
     }
 
     @SuppressWarnings("unused")
@@ -94,7 +158,7 @@ public class MerchantItemDisplay implements IConfigurable, IPersistedSerializabl
         try {
             switch (mode) {
                 case ITEM -> {
-                    // The actual ItemStack is configured on MerchantItemInfo; no extra fields apply.
+                    // 实际物品堆在 MerchantItemInfo 中配置，此模式不需要额外字段。
                 }
                 case RESOURCE -> {
                     StringConfigurator resourcePathConfigurator = new StringConfigurator(
@@ -119,10 +183,10 @@ public class MerchantItemDisplay implements IConfigurable, IPersistedSerializabl
                 }
                 case ITEM_RENDER -> {
                     Field field = getClass().getDeclaredField("renderItem");
-                    Configurator configurator = new ItemStackAccessor().create(
+                    Configurator configurator = new ViScriptItemStackAccessor().create(
                             "viscript_shop.data.merchant.itemDisplay.renderItem",
-                            this::resolvedRenderItem,
-                            this::setRenderItem,
+                            this::getSerializedRenderItem,
+                            this::setSerializedRenderItem,
                             true,
                             field,
                             this

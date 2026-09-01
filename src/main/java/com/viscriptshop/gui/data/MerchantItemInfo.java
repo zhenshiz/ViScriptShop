@@ -8,8 +8,8 @@ import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
+import com.viscript_lib.util.item.ViScriptItemStack;
 import io.netty.buffer.ByteBuf;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import net.minecraft.network.codec.StreamCodec;
@@ -25,14 +25,13 @@ import java.util.HashMap;
  * 此类型用于不需要物品组件匹配规则的商品位置，例如 {@code itemResult}。
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class MerchantItemInfo implements IConfigurable, IPersistedSerializable {
     public static final StreamCodec<ByteBuf, MerchantItemInfo> STREAM_CODEC;
     public static final Codec<MerchantItemInfo> CODEC;
 
     @Configurable(name = "viscript_shop.data.merchant.item.actual")
-    private ItemStack item = ItemStack.EMPTY;
+    private ViScriptItemStack item = new ViScriptItemStack();
 
     @Configurable(showName = false, subConfigurable = true, subFlattenConfigurable = true)
     private MerchantItemDisplay display = new MerchantItemDisplay();
@@ -42,9 +41,30 @@ public class MerchantItemInfo implements IConfigurable, IPersistedSerializable {
         STREAM_CODEC = PersistedParser.createStreamCodec(MerchantItemInfo::new);
     }
 
+    /**
+     * 使用原版物品堆创建商品物品信息。
+     *
+     * @param item 参与交易的原版物品堆
+     * @param display 图标展示配置
+     */
+    public MerchantItemInfo(ItemStack item, MerchantItemDisplay display) {
+        this(new ViScriptItemStack(item == null ? ItemStack.EMPTY : item), display);
+    }
+
+    /**
+     * 使用容错物品数据创建商品物品信息。
+     *
+     * @param item 容错物品数据
+     * @param display 图标展示配置
+     */
+    protected MerchantItemInfo(ViScriptItemStack item, MerchantItemDisplay display) {
+        this.item = item == null ? new ViScriptItemStack() : item;
+        this.display = display == null ? new MerchantItemDisplay() : display;
+    }
+
     @Override
     public void buildConfigurator(ConfiguratorGroup father) {
-        getItem();
+        getSerializedItem();
         getDisplay();
         addFieldConfigurator(father, MerchantItemInfo.class, "item")
                 .addClass("merchant-item-actual");
@@ -53,15 +73,54 @@ public class MerchantItemInfo implements IConfigurable, IPersistedSerializable {
     }
 
     /**
-     * 获取参与交易的实际物品。
+     * 获取参与持久化和网络传输的容错物品数据。
      *
-     * @return 非 {@code null} 的实际物品堆
+     * @return 非 {@code null} 的容错物品数据
      */
-    public ItemStack getItem() {
+    public ViScriptItemStack getSerializedItem() {
         if (item == null) {
-            item = ItemStack.EMPTY;
+            item = new ViScriptItemStack();
         }
         return item;
+    }
+
+    /**
+     * 替换参与持久化和网络传输的容错物品数据。
+     *
+     * @param item 容错物品数据；传入 {@code null} 时使用空物品
+     */
+    public void setSerializedItem(ViScriptItemStack item) {
+        this.item = item == null ? new ViScriptItemStack() : item;
+    }
+
+    /**
+     * 获取供渲染或游戏逻辑使用的独立原版物品堆。
+     *
+     * <p>物品 ID 不存在时返回 {@link ViScriptItemStack} 提供的占位物品；修改返回值
+     * 不会影响已持久化的数据。
+     *
+     * @return 已解析的物品堆或缺失物品占位符
+     */
+    public ItemStack getItem() {
+        return getSerializedItem().toItemStack();
+    }
+
+    /**
+     * 使用原版物品堆的副本替换持久化数据。
+     *
+     * @param item 原版物品堆；传入 {@code null} 时使用空物品
+     */
+    public void setItem(ItemStack item) {
+        setSerializedItem(new ViScriptItemStack(item == null ? ItemStack.EMPTY : item));
+    }
+
+    /**
+     * 判断序列化物品 ID 是否未注册。
+     *
+     * @return 使用缺失物品占位符时返回 {@code true}
+     */
+    public boolean isMissingItem() {
+        return getSerializedItem().isMissingItem();
     }
 
     /**

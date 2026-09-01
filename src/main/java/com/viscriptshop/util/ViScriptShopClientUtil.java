@@ -38,11 +38,11 @@ public class ViScriptShopClientUtil {
     }
 
     @Info("获取玩家钱")
-    public static int getMoney(LocalPlayer player) {
+    public static double getMoney(LocalPlayer player) {
         if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            return (int) SGEconomyApi.getBalance(player);
+            return MoneyUtil.normalize(SGEconomyApi.getBalance(player));
         }
-        return player.getData(ShopRegistries.MONEY).getMoney();
+        return MoneyUtil.normalize(player.getData(ShopRegistries.MONEY).getMoney());
     }
 
     @Info("获取玩家阶段标记")

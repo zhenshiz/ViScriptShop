@@ -11,8 +11,10 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
-import com.viscriptshop.gui.components.MerchantFlagGroupsConfigurator;
+import com.viscriptshop.gui.components.StageRestrictionConfigurator;
+import com.viscriptshop.util.MoneyUtil;
 import com.viscript_lib.util.CodecUtil;
+import com.viscript_lib.util.item.ViScriptItemStack;
 import dev.vfyjxf.taffy.style.TaffyDisplay;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -33,7 +35,7 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class MerchantInfo implements IConfigurable, IPersistedSerializable {
+public class MerchantInfo implements IConfigurable, IPersistedSerializable, StageRestricted {
     public static final StreamCodec<ByteBuf, MerchantInfo> STREAM_CODEC;
     public static final Codec<MerchantInfo> CODEC;
 
@@ -44,8 +46,8 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     private MerchantCostItemInfo itemBInfo = new MerchantCostItemInfo();
     //通用货币商店
     @Configurable(name = "viscript_shop.data.merchant.money")
-    @ConfigNumber(range = {0, Integer.MAX_VALUE})
-    private int money = 0;
+    @ConfigNumber(range = {0, Double.MAX_VALUE}, wheel = 0.1, type = ConfigNumber.Type.DOUBLE)
+    private double money = 0;
     @Configurable(name = "viscript_shop.data.merchant.tradeType")
     private TradeType tradeType = TradeType.BUY;
     //通用参数
@@ -62,10 +64,12 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     @Configurable(name = "viscript_shop.data.merchant.command", tips = "viscript_shop.data.merchant.command.tip")
     private String command = "";
     @Persisted
+    private List<String> lockMessages = new ArrayList<>();
+    @Persisted
     private MerchantFlagGroup.GroupMatchMode flagGroupMode = MerchantFlagGroup.GroupMatchMode.OR;
     @Persisted
     private List<MerchantFlagGroup> flagGroups = new ArrayList<>();
-    //ui用参数
+    // 界面使用的参数
     private Number buyCount = 0;
 
     static {
@@ -97,7 +101,7 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
         addFieldConfigurator(group, "stock");
         addFieldConfigurator(group, "xp");
         addFieldConfigurator(group, "command");
-        group.addConfigurator(new MerchantFlagGroupsConfigurator(this));
+        group.addConfigurator(new StageRestrictionConfigurator(this));
         return group;
     }
 
@@ -149,6 +153,17 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     }
 
     /**
+     * 设置单次交易使用的货币金额。
+     *
+     * <p>负数、非数字和无穷值均会被规范化为零。
+     *
+     * @param money 新的交易金额
+     */
+    public void setMoney(double money) {
+        this.money = MoneyUtil.normalize(money);
+    }
+
+    /**
      * 获取交易物品 A 的完整信息。
      *
      * @return 非 {@code null} 的交易物品 A 信息
@@ -194,6 +209,15 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     }
 
     /**
+     * 获取物品 A 的容错持久化数据。
+     *
+     * @return 物品 A 的容错物品数据
+     */
+    public ViScriptItemStack getSerializedItemA() {
+        return getItemAInfo().getSerializedItem();
+    }
+
+    /**
      * 设置参与交易的物品 A，但不修改其匹配规则或图标配置。
      *
      * @param itemA 物品 A 的实际物品堆；传入 {@code null} 时使用空物品堆
@@ -212,6 +236,15 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
     }
 
     /**
+     * 获取物品 B 的容错持久化数据。
+     *
+     * @return 物品 B 的容错物品数据
+     */
+    public ViScriptItemStack getSerializedItemB() {
+        return getItemBInfo().getSerializedItem();
+    }
+
+    /**
      * 设置参与交易的物品 B，但不修改其匹配规则或图标配置。
      *
      * @param itemB 物品 B 的实际物品堆；传入 {@code null} 时使用空物品堆
@@ -227,6 +260,15 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable {
      */
     public ItemStack getItemResult() {
         return getItemResultInfo().getItem();
+    }
+
+    /**
+     * 获取返回物品的容错持久化数据。
+     *
+     * @return 返回物品的容错物品数据
+     */
+    public ViScriptItemStack getSerializedItemResult() {
+        return getItemResultInfo().getSerializedItem();
     }
 
     /**

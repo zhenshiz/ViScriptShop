@@ -15,6 +15,7 @@ import com.viscriptshop.gui.ShopEditor;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.Shop;
+import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.UIElementUtil;
 import dev.vfyjxf.taffy.style.*;
 import net.minecraft.network.chat.Component;
@@ -223,9 +224,8 @@ public class ShopPreviewView extends View {
                             layout.marginBottom(10);
                         });
 
-                int money = merchantInfo.getMoney();
                 Label priceLabel = (Label) new Label()
-                        .setText(Component.literal("◎" + money))
+                        .setText(Component.literal("◎" + MoneyUtil.formatCompact(merchantInfo.getMoney())))
                         .textStyle(style -> style
                                 .textColor(0xFFFFAA00)
                                 .textAlignHorizontal(Horizontal.CENTER)
