@@ -37,6 +37,7 @@ import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
@@ -152,7 +153,24 @@ public class UIElementUtil {
      */
     public static UIElement createMerchantItemDisplay(MerchantItemInfo itemInfo,
                                                        boolean showItemTooltips) {
-        ItemStack actualItem = itemInfo == null ? ItemStack.EMPTY : itemInfo.getItem();
+        return createMerchantItemDisplay(itemInfo, showItemTooltips, null);
+    }
+
+    /**
+     * 根据商品信息和指定数量创建客户端图标。
+     *
+     * <p>该重载允许外层组件独立渲染紧凑数量或折扣对比，只替换图标渲染副本的数量，
+     * 不修改参与交易的商店物品。
+     *
+     * @param itemInfo 商品的实际物品与图标配置
+     * @param showItemTooltips 是否显示原版物品提示
+     * @param displayCount 要显示的折后数量；传入 {@code null} 时使用原数量
+     * @return 尺寸为 16×16 的物品槽或资源图片元素
+     */
+    public static UIElement createMerchantItemDisplay(MerchantItemInfo itemInfo,
+                                                       boolean showItemTooltips,
+                                                       @Nullable Integer displayCount) {
+        ItemStack actualItem = itemInfo == null ? ItemStack.EMPTY : withDisplayCount(itemInfo.getItem(), displayCount);
         MerchantItemDisplay display = itemInfo == null ? null : itemInfo.getDisplay();
         MerchantItemDisplay.RenderMode mode = display == null
                 ? MerchantItemDisplay.RenderMode.ITEM
@@ -161,7 +179,7 @@ public class UIElementUtil {
             case ITEM -> createItemSlot(actualItem, false, showItemTooltips)
                     .addClass("merchant-item-display-actual");
             case ITEM_RENDER -> createItemSlot(
-                    display == null ? ItemStack.EMPTY : display.resolvedRenderItem(),
+                    display == null ? ItemStack.EMPTY : withDisplayCount(display.resolvedRenderItem(), displayCount),
                     false,
                     showItemTooltips
             ).addClass("merchant-item-display-item-render");
@@ -169,6 +187,15 @@ public class UIElementUtil {
                     .addClass("merchant-item-display-resource");
         };
         return element.addClass("merchant-item-display");
+    }
+
+    private static ItemStack withDisplayCount(ItemStack stack, @Nullable Integer displayCount) {
+        if (stack == null || stack.isEmpty() || displayCount == null) {
+            return stack == null ? ItemStack.EMPTY : stack;
+        }
+        ItemStack copy = stack.copy();
+        copy.setCount(Math.max(1, displayCount));
+        return copy;
     }
 
     private static UIElement createResourceItemDisplay(MerchantItemDisplay display) {
@@ -187,17 +214,22 @@ public class UIElementUtil {
         if (tooltip == null || tooltip.isBlank()) {
             tooltip = display == null ? "" : display.getResourcePath();
         }
-        if (!tooltip.isBlank()) {
-            String tooltipText = tooltip;
-            element.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+        String tooltipText = tooltip;
+        element.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+            List<Component> tooltipTexts = new ArrayList<>();
+            if (!tooltipText.isBlank()) {
+                tooltipTexts.add(Component.literal(tooltipText));
+            }
+            tooltipTexts.addAll(event.currentElement.getStyle().tooltips().asList());
+            if (!tooltipTexts.isEmpty()) {
                 event.hoverTooltips = new HoverTooltips(
-                        List.of(Component.literal(tooltipText)),
+                        tooltipTexts,
                         null,
                         null,
                         null
                 );
-            });
-        }
+            }
+        });
         return element;
     }
 

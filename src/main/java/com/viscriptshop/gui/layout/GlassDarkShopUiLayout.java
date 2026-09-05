@@ -95,6 +95,8 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
         return new UIElement().setId("shop_ui_categories").layout(layout -> {
             layout.heightPercent(100);
             layout.widthPercent(22);
+            layout.minWidth(80);
+            layout.flexShrink(1);
             layout.gapAll(3);
             layout.flexDirection(FlexDirection.COLUMN);
         }).style(style -> style.backgroundTexture(theme.categoryColumnBackground()))
@@ -168,9 +170,13 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
             layout.widthPercent(100);
             layout.heightPercent(100);
         });
+        // 商品行已有横向内边距，减少滚动视口的重复留白，为按钮保留实际可用宽度。
+        elements.merchantsView().viewPort.getLayout().paddingHorizontal(1);
 
         return new UIElement().layout(layout -> {
             layout.widthPercent(55);
+            // 容纳双成本、箭头、输出、赠品及完整的数量操作区，窄窗口也不挤压按钮。
+            layout.minWidth(236);
             layout.heightPercent(100);
             layout.gapAll(theme.centerPanelGap());
             layout.flexDirection(FlexDirection.COLUMN);
@@ -265,6 +271,8 @@ public final class GlassDarkShopUiLayout implements ShopUiLayout {
 
         return new UIElement().setId("shop_ui_summary").layout(layout -> {
             layout.widthPercent(25);
+            layout.minWidth(0);
+            layout.flexShrink(1);
             layout.heightPercent(100);
             layout.gapAll(3);
             layout.flexDirection(FlexDirection.COLUMN);

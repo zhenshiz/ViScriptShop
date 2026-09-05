@@ -4,6 +4,9 @@ def ldTestEnabled = project.hasProperty('ldTest')
 
 if (ldTestEnabled) {
     neoForge.runs.matching { it.name == 'client' }.configureEach { run ->
+        // WorldBootstrap deletes every ldtest_* save before creating a new test world.
+        // Keep automated runs separate from run/, where developers may keep playing those saves.
+        run.gameDirectory.set(layout.buildDirectory.dir('ldlib2-uitest/game'))
         run.systemProperty 'ldlib2.uitest.run', project.property('ldTest')
         run.systemProperty 'ldlib2.uitest.out', ldTestOutDir
         run.systemProperty 'ldlib2.uitest.exclude', project.findProperty('ldTestExclude') ?: ''

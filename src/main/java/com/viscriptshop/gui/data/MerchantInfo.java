@@ -1,8 +1,8 @@
 package com.viscriptshop.gui.data;
 
 import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.configurator.ConfiguratorParser;
 import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
+import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigList;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
@@ -11,10 +11,15 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
+import com.viscriptshop.gui.components.ConfiguratorFieldHelper;
 import com.viscriptshop.gui.components.StageRestrictionConfigurator;
+import com.viscriptshop.gui.components.InheritedPromotionSummaryConfigurator;
+import com.viscriptshop.gui.components.OptionalSectionConfigurator;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscript_lib.util.CodecUtil;
 import com.viscript_lib.util.item.ViScriptItemStack;
+import com.viscriptshop.promotion.PromotionRule;
+import com.viscriptshop.promotion.PromotionResolver;
 import dev.vfyjxf.taffy.style.TaffyDisplay;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,9 +33,10 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @Data
 @AllArgsConstructor
@@ -61,8 +67,27 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
     @Configurable(name = "viscript_shop.data.merchant.xp")
     @ConfigNumber(range = {0, Integer.MAX_VALUE})
     private int xp = 0;
-    @Configurable(name = "viscript_shop.data.merchant.command", tips = "viscript_shop.data.merchant.command.tip")
-    private String command = "";
+    @Configurable(name = "viscript_shop.data.merchant.command",
+            tips = "viscript_shop.data.merchant.command.tip", collapse = false)
+    @ConfigList
+    private List<String> commands = new ArrayList<>();
+    @Persisted
+    private boolean promotionEnabled;
+    @Configurable(name = "viscript_shop.data.merchant.inherit_promotions",
+            tips = "viscript_shop.data.merchant.inherit_promotions.tip")
+    private boolean inheritParentPromotions = true;
+    @Configurable(name = "viscript_shop.data.merchant.promotion_aggregation",
+            tips = "viscript_shop.data.merchant.promotion_aggregation.tip")
+    private PromotionRule.AggregationSetting promotionAggregation = PromotionRule.AggregationSetting.INHERIT;
+    @Configurable(name = "viscript_shop.data.merchant.promotion_rules",
+            tips = "viscript_shop.data.merchant.promotion_rules.tip", collapse = false)
+    @ConfigList(
+            configuratorMethod = "createPromotionRuleConfigurator",
+            addDefaultMethod = "createDefaultPromotionRule"
+    )
+    private List<PromotionRule> promotionRules = new ArrayList<>();
+    @Persisted
+    private boolean stageRestrictionEnabled;
     @Persisted
     private List<String> lockMessages = new ArrayList<>();
     @Persisted
@@ -71,6 +96,7 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
     private List<MerchantFlagGroup> flagGroups = new ArrayList<>();
     // 界面使用的参数
     private Number buyCount = 0;
+    private transient CategoryInfo.ShopType configuratorShopType = CategoryInfo.ShopType.ITEM_FOR_ITEM;
 
     static {
         CODEC = PersistedParser.createCodec(MerchantInfo::new);
@@ -78,6 +104,19 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
     }
 
     public Configurator createConfigurator(CategoryInfo.ShopType shopType) {
+        return createConfigurator(shopType, List.of());
+    }
+
+    /**
+     * 创建商品编辑表单，并附带只读的上级规则摘要。
+     *
+     * @param shopType 商品所属分类的交易类型
+     * @param parentRules 商店和分类提供的可继承规则
+     * @return 商品编辑表单
+     */
+    public Configurator createConfigurator(CategoryInfo.ShopType shopType,
+                                           List<PromotionResolver.ScopedRule> parentRules) {
+        configuratorShopType = shopType == null ? CategoryInfo.ShopType.ITEM_FOR_ITEM : shopType;
         ConfiguratorGroup group = new ConfiguratorGroup();
         group.setCanCollapse(false);
         group.setCollapse(false);
@@ -85,43 +124,105 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
         getItemAInfo();
         getItemBInfo();
         getItemResultInfo();
-        // 显式指定字段分组，避免字段顺序变化后把无关配置显示到另一种商店类型中。
-        if (shopType == CategoryInfo.ShopType.ITEM_FOR_ITEM) {
-            addFieldConfigurator(group, "itemAInfo")
-                    .addClass("merchant-cost-item-info");
-            addFieldConfigurator(group, "itemBInfo")
-                    .addClass("merchant-cost-item-info");
-        } else if (shopType == CategoryInfo.ShopType.CURRENCY) {
-            addFieldConfigurator(group, "money");
-            addFieldConfigurator(group, "tradeType");
+        getPromotionRules();
+        if (promotionAggregation == null) {
+            promotionAggregation = PromotionRule.AggregationSetting.INHERIT;
         }
-        addFieldConfigurator(group, "id");
-        addFieldConfigurator(group, "itemResultInfo")
+
+        ConfiguratorFieldHelper.addField(group, this, "id").setId("merchant_id");
+        ConfiguratorFieldHelper.addField(group, this, "stock").setId("merchant_stock");
+
+        // 交易成本字段按分类类型生成，避免编辑到当前类型不会使用的数据。
+        if (configuratorShopType == CategoryInfo.ShopType.ITEM_FOR_ITEM) {
+            ConfiguratorFieldHelper.addField(group, this, "itemAInfo")
+                    .addClass("merchant-cost-item-info");
+            ConfiguratorFieldHelper.addField(group, this, "itemBInfo")
+                    .addClass("merchant-cost-item-info");
+        } else {
+            ConfiguratorFieldHelper.addField(group, this, "money").setId("merchant_money");
+            ConfiguratorFieldHelper.addField(group, this, "tradeType").setId("merchant_trade_type");
+        }
+        ConfiguratorFieldHelper.addField(group, this, "itemResultInfo")
                 .addClass("merchant-result-item-info");
-        addFieldConfigurator(group, "stock");
-        addFieldConfigurator(group, "xp");
-        addFieldConfigurator(group, "command");
-        group.addConfigurator(new StageRestrictionConfigurator(this));
+        ConfiguratorFieldHelper.addField(group, this, "xp").setId("merchant_xp");
+        ConfiguratorFieldHelper.addField(group, this, "commands").setId("merchant_commands");
+
+        OptionalSectionConfigurator promotionSection = new OptionalSectionConfigurator(
+                "viscript_shop.editor.section.merchant.promotion",
+                this::isPromotionEnabled,
+                this::setPromotionEnabled
+        ).setToggleId("merchant_promotion_enabled");
+        promotionSection.setId("merchant_promotion_section");
+        promotionSection.folderIcon.setId("merchant_promotion_expand");
+        promotionSection.setTips("viscript_shop.editor.section.merchant.promotion.tip");
+        ConfiguratorFieldHelper.addField(promotionSection, this, "inheritParentPromotions")
+                .setId("merchant_inherit_promotions");
+        ConfiguratorFieldHelper.addField(promotionSection, this, "promotionAggregation")
+                .setId("merchant_promotion_aggregation");
+        promotionSection.addConfigurator(new InheritedPromotionSummaryConfigurator(parentRules));
+        ConfiguratorFieldHelper.addField(promotionSection, this, "promotionRules")
+                .setId("merchant_promotion_rules");
+
+        OptionalSectionConfigurator stageSection = new OptionalSectionConfigurator(
+                "viscript_shop.editor.section.stage",
+                this::isStageRestrictionEnabled,
+                this::setStageRestrictionEnabled
+        ).setToggleId("merchant_stage_enabled");
+        stageSection.setId("merchant_stage_section");
+        stageSection.folderIcon.setId("merchant_stage_expand");
+        stageSection.setTips("viscript_shop.editor.section.stage.tip");
+        ConfiguratorGroup stageContent = new StageRestrictionConfigurator(this).hideTitle();
+        stageContent.setId("merchant_stage_content");
+        stageSection.addConfigurator(stageContent);
+
+        group.addConfigurators(promotionSection, stageSection);
         return group;
     }
 
-    private Configurator addFieldConfigurator(ConfiguratorGroup group, String fieldName) {
-        try {
-            int previousSize = group.getConfigurators().size();
-            ConfiguratorParser.createFieldConfigurator(
-                    getClass().getDeclaredField(fieldName),
-                    group,
-                    getClass(),
-                    new HashMap<>(),
-                    this
-            );
-            if (group.getConfigurators().size() <= previousSize) {
-                throw new IllegalStateException("No configurator created for merchant field: " + fieldName);
-            }
-            return group.getConfigurators().getLast();
-        } catch (NoSuchFieldException exception) {
-            throw new IllegalStateException("Missing merchant field: " + fieldName, exception);
+    private Configurator createPromotionRuleConfigurator(Supplier<PromotionRule> getter,
+                                                          Consumer<PromotionRule> setter) {
+        return PromotionRule.createListEntryConfigurator(getter, setter, configuratorShopType);
+    }
+
+    private PromotionRule createDefaultPromotionRule() {
+        return new PromotionRule();
+    }
+
+    /**
+     * 获取该商品拥有的促销规则。
+     *
+     * @return 非 {@code null} 的商品级促销规则列表
+     */
+    public List<PromotionRule> getPromotionRules() {
+        if (promotionRules == null) {
+            promotionRules = new ArrayList<>();
         }
+        return promotionRules;
+    }
+
+    /**
+     * 获取交易成功后依次执行的指令。
+     *
+     * @return 非 {@code null} 的指令列表，每个元素表示一条完整指令
+     */
+    public List<String> getCommands() {
+        if (commands == null) {
+            commands = new ArrayList<>();
+        }
+        return commands;
+    }
+
+    /**
+     * 使用上级合并方式解析商品当前采用的具体方式。
+     *
+     * @param fallback 上级提供的具体合并方式
+     * @return 商品最终采用的合并方式
+     */
+    public PromotionRule.AggregationMode resolvePromotionAggregation(PromotionRule.AggregationMode fallback) {
+        if (promotionAggregation == null) {
+            promotionAggregation = PromotionRule.AggregationSetting.INHERIT;
+        }
+        return promotionAggregation.resolve(fallback);
     }
 
     @Deprecated

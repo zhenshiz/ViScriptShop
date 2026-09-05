@@ -5,7 +5,11 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 public class ShopScrollerView extends ScrollerView {
 
     public ShopScrollerView(ShopTheme theme) {
-        verticalScroller(scroller -> {
+        applyTheme(this, theme);
+    }
+
+    public static void applyTheme(ScrollerView view, ShopTheme theme) {
+        view.verticalScroller(scroller -> {
             scroller.layout(layout -> layout.width(theme.scrollWidth()));
             scroller.headButton(btn -> {
                 btn.layout(layout -> {

@@ -23,19 +23,17 @@ import java.util.Set;
 /**
  * 汇总购物车中所需支付或获得的物品、货币和经验值。
  *
- * <p>物品及其数量直接保存在 {@link ViScriptItemStack} 中，避免原版物品堆 Codec 的
- * 数量上限和缺失注册表项导致网络包解析失败。背包匹配、事件和物品发放等运行时边界
- * 仍通过 {@link ItemStack} 完成。
+ * <p>物品类型保存在 {@link ViScriptItemStack} 中，汇总数量单独使用 {@code long}。
+ * 这样既能保留缺失物品信息，也不会受原版 {@link ItemStack} 的整数数量限制。
  */
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class AggregatedResources implements IPersistedSerializable {
     public static final StreamCodec<ByteBuf, AggregatedResources> STREAM_CODEC;
     public static final Codec<AggregatedResources> CODEC;
 
     @Persisted(key = "items")
-    private List<ViScriptItemStack> serializedItems = new ArrayList<>();
+    private List<ItemEntry> resourceItems = new ArrayList<>();
     @Persisted
     private List<ItemEntry> itemEntries = new ArrayList<>();
     @Persisted
@@ -76,7 +74,7 @@ public class AggregatedResources implements IPersistedSerializable {
     }
 
     /**
-     * 物品消耗条目，除了物品和数量外还保存组件比较规则。
+     * 物品汇总条目，除了物品模板和长整型数量外还保存组件比较规则。
      */
     @Data
     @NoArgsConstructor
@@ -88,6 +86,8 @@ public class AggregatedResources implements IPersistedSerializable {
         private ViScriptItemStack serializedItemStack = new ViScriptItemStack();
         @Persisted
         private ItemMatchRule matchRule = new ItemMatchRule();
+        @Persisted
+        private long count;
 
         static {
             CODEC = PersistedParser.createCodec(ItemEntry::new);
@@ -101,8 +101,20 @@ public class AggregatedResources implements IPersistedSerializable {
          * @param matchRule 组件匹配规则
          */
         public ItemEntry(ViScriptItemStack itemStack, ItemMatchRule matchRule) {
+            this(itemStack, matchRule, stackCount(itemStack));
+        }
+
+        /**
+         * 创建带独立长整型数量的容错物品条目。
+         *
+         * @param itemStack 容错物品数据
+         * @param matchRule 组件匹配规则
+         * @param count 物品总数量
+         */
+        public ItemEntry(ViScriptItemStack itemStack, ItemMatchRule matchRule, long count) {
             this.serializedItemStack = itemStack == null ? new ViScriptItemStack() : itemStack;
             this.matchRule = matchRule == null ? new ItemMatchRule() : matchRule;
+            this.count = Math.max(0L, count);
         }
 
         /**
@@ -130,11 +142,11 @@ public class AggregatedResources implements IPersistedSerializable {
                     && componentSet(safeRule()).equals(componentSet(otherRule));
         }
 
-        public ItemEntry copyWithCount(int count) {
-            return new ItemEntry(getSerializedItemStack().copyWithCount(count), safeRule().copy());
+        public ItemEntry copyWithCount(long count) {
+            return new ItemEntry(getSerializedItemStack(), safeRule().copy(), count);
         }
 
-        public int getItemForPlayerCount(ServerPlayer player) {
+        public long getItemForPlayerCount(ServerPlayer player) {
             if (isMissingItem()) return 0;
             return safeRule().getItemForPlayerCount(player, getItemStack());
         }
@@ -184,21 +196,21 @@ public class AggregatedResources implements IPersistedSerializable {
         }
 
         /**
-         * 获取直接保存在容错物品堆中的数量。
+         * 获取独立保存的汇总数量。
          *
          * @return 物品数量
          */
-        public int getCount() {
-            return getItemStack().getCount();
+        public long getCount() {
+            return count;
         }
 
         /**
-         * 更新容错物品堆中的数量。
+         * 更新独立保存的汇总数量。
          *
-         * @param count 新数量；非正数会清空物品堆
+         * @param count 新数量；负数会按零处理
          */
-        public void setCount(int count) {
-            serializedItemStack = getSerializedItemStack().copyWithCount(count);
+        public void setCount(long count) {
+            this.count = Math.max(0L, count);
         }
 
         /**
@@ -225,6 +237,10 @@ public class AggregatedResources implements IPersistedSerializable {
 
         private static Set<DataComponentType<?>> componentSet(ItemMatchRule rule) {
             return new HashSet<>(rule.resolvedComponents());
+        }
+
+        private static long stackCount(ViScriptItemStack stack) {
+            return stack == null ? 0L : Math.max(0, stack.toItemStack().getCount());
         }
     }
 
@@ -254,8 +270,8 @@ public class AggregatedResources implements IPersistedSerializable {
 
     public long getTotalItemCount() {
         long total = 0L;
-        for (ViScriptItemStack item : getSerializedItems()) {
-            total = saturatedAdd(total, item.toItemStack().getCount());
+        for (ItemEntry item : getResourceItems()) {
+            total = saturatedAdd(total, item.getCount());
         }
         return total;
     }
@@ -263,24 +279,31 @@ public class AggregatedResources implements IPersistedSerializable {
     /**
      * 获取供渲染、事件或游戏逻辑使用的原版物品堆副本。
      *
-     * <p>每个返回物品堆已经包含汇总后的数量，不再通过独立整数传递数量。
+     * <p>该兼容视图会把超过 {@link Integer#MAX_VALUE} 的数量截到整数上限。需要取得
+     * 完整数量时应使用 {@link #getResourceItems()}。
      *
      * @return 原版物品堆副本列表
      */
     public List<ItemStack> getItems() {
-        return getSerializedItems().stream().map(ViScriptItemStack::toItemStack).toList();
+        return getResourceItems().stream().map(entry -> {
+            ItemStack stack = entry.getItemStack();
+            if (!stack.isEmpty()) {
+                stack.setCount((int) Math.min(Integer.MAX_VALUE, entry.getCount()));
+            }
+            return stack;
+        }).toList();
     }
 
     /**
-     * 获取参与持久化和网络传输的容错物品列表。
+     * 获取带长整型数量的汇总物品列表。
      *
-     * @return 非 {@code null} 的容错物品列表
+     * @return 非 {@code null} 的汇总物品条目列表
      */
-    public List<ViScriptItemStack> getSerializedItems() {
-        if (serializedItems == null) {
-            serializedItems = new ArrayList<>();
+    public List<ItemEntry> getResourceItems() {
+        if (resourceItems == null) {
+            resourceItems = new ArrayList<>();
         }
-        return serializedItems;
+        return resourceItems;
     }
 
     /**
@@ -313,7 +336,7 @@ public class AggregatedResources implements IPersistedSerializable {
      * @return 任意输出物品或成本条目缺失时返回 {@code true}
      */
     public boolean hasMissingItems() {
-        return getSerializedItems().stream().anyMatch(ViScriptItemStack::isMissingItem)
+        return getResourceItems().stream().anyMatch(ItemEntry::isMissingItem)
                 || getItemEntries().stream().anyMatch(ItemEntry::isMissingItem);
     }
 
@@ -323,7 +346,7 @@ public class AggregatedResources implements IPersistedSerializable {
      * @param stack 要合并的物品（通常数量为1，但也可以是任意数量）
      * @param count 购买数量 (buyCount)
      */
-    public void addItem(ItemStack stack, int count) {
+    public void addItem(ItemStack stack, long count) {
         addItem(new ViScriptItemStack(stack == null ? ItemStack.EMPTY : stack), count);
     }
 
@@ -333,33 +356,30 @@ public class AggregatedResources implements IPersistedSerializable {
      * @param stack 容错物品数据
      * @param count 购买倍数
      */
-    public void addItem(ViScriptItemStack stack, int count) {
+    public void addItem(ViScriptItemStack stack, long count) {
         if (stack == null || stack.toItemStack().isEmpty() || count <= 0) return;
 
-        int totalQuantity = saturatedMultiply(stack.toItemStack().getCount(), count);
+        long totalQuantity = saturatedMultiply(stack.toItemStack().getCount(), count);
         if (!stack.isMissingItem()) {
             ItemStack runtimeStack = stack.toItemStack();
-            for (int index = 0; index < getSerializedItems().size(); index++) {
-                ViScriptItemStack existing = getSerializedItems().get(index);
-                if (!existing.isMissingItem()
-                        && ItemStack.isSameItemSameComponents(runtimeStack, existing.toItemStack())) {
-                    int mergedCount = saturatedAdd(existing.toItemStack().getCount(), totalQuantity);
-                    getSerializedItems().set(index, existing.copyWithCount(mergedCount));
+            for (ItemEntry existing : getResourceItems()) {
+                if (existing.canMerge(runtimeStack, null)) {
+                    existing.setCount(saturatedAdd(existing.getCount(), totalQuantity));
                     return;
                 }
             }
         }
-        getSerializedItems().add(stack.copyWithCount(totalQuantity));
+        getResourceItems().add(new ItemEntry(stack, null, totalQuantity));
     }
 
-    public void addItemEntry(ItemStack stack, int count, ItemMatchRule matchRule) {
+    public void addItemEntry(ItemStack stack, long count, ItemMatchRule matchRule) {
         addItemEntry(new ViScriptItemStack(stack == null ? ItemStack.EMPTY : stack), count, matchRule);
     }
 
-    public void addItemEntry(ViScriptItemStack stack, int count, ItemMatchRule matchRule) {
+    public void addItemEntry(ViScriptItemStack stack, long count, ItemMatchRule matchRule) {
         if (stack == null || stack.toItemStack().isEmpty() || count <= 0) return;
 
-        int totalQuantity = saturatedMultiply(stack.toItemStack().getCount(), count);
+        long totalQuantity = saturatedMultiply(stack.toItemStack().getCount(), count);
         ItemMatchRule rule = matchRule == null ? new ItemMatchRule() : matchRule;
 
         for (ItemEntry entry : getItemEntries()) {
@@ -370,7 +390,7 @@ public class AggregatedResources implements IPersistedSerializable {
             }
         }
 
-        getItemEntries().add(new ItemEntry(stack.copyWithCount(totalQuantity), rule.copy()));
+        getItemEntries().add(new ItemEntry(stack, rule.copy(), totalQuantity));
         addItem(stack, count);
     }
 
@@ -380,7 +400,7 @@ public class AggregatedResources implements IPersistedSerializable {
      * @param money 花费的货币值
      * @param count 购买数量
      */
-    public void addMoney(double money, int count) {
+    public void addMoney(double money, long count) {
         if (MoneyUtil.isPositive(money) && count > 0) {
             this.totalMoney = MoneyUtil.add(this.totalMoney, MoneyUtil.multiply(money, count));
         }
@@ -392,20 +412,22 @@ public class AggregatedResources implements IPersistedSerializable {
      * @param xp    获得的经验值
      * @param count 购买数量
      */
-    public void addXp(int xp, int count) {
+    public void addXp(int xp, long count) {
         if (xp > 0 && count > 0) {
-            this.totalXp = saturatedAdd(this.totalXp, saturatedMultiply(xp, count));
+            this.totalXp = saturatedAddToInt(this.totalXp, saturatedMultiply(xp, count));
         }
     }
 
     /**
-     * 合并指令
+     * 合并一条待执行指令。
      *
-     * @param command 指令
+     * <p>空白指令会被忽略，首尾空白不会进入结算数据。
+     *
+     * @param command 一条完整指令
      */
     public void addCommand(String command) {
-        if (!command.isEmpty()) {
-            commands.add(command);
+        if (command != null && !command.isBlank()) {
+            commands.add(command.trim());
         }
     }
 
@@ -463,7 +485,7 @@ public class AggregatedResources implements IPersistedSerializable {
 
                 //通用收益
                 gain.addXp(merchant.getXp(), count);
-                gain.addCommand(merchant.getCommand());
+                merchant.getCommands().forEach(gain::addCommand);
                 switch (categoryInfo.getShopType()) {
                     case ITEM_FOR_ITEM -> {
                         // 以物换物商店：收益是 itemResult
@@ -488,17 +510,19 @@ public class AggregatedResources implements IPersistedSerializable {
         return gain;
     }
 
-    private static int saturatedMultiply(int left, int right) {
-        long result = (long) left * right;
-        return result >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) result;
+    private static long saturatedMultiply(long left, long right) {
+        if (left <= 0 || right <= 0) return 0L;
+        if (left > Long.MAX_VALUE / right) return Long.MAX_VALUE;
+        return left * right;
     }
 
-    private static int saturatedAdd(int left, int right) {
-        long result = (long) left + right;
-        return result >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) result;
+    private static int saturatedAddToInt(int left, long right) {
+        if (right >= Integer.MAX_VALUE - (long) left) return Integer.MAX_VALUE;
+        return (int) Math.max(0L, left + right);
     }
 
-    private static long saturatedAdd(long left, int right) {
+    private static long saturatedAdd(long left, long right) {
+        if (left < 0 || right < 0) return 0L;
         if (Long.MAX_VALUE - left < right) return Long.MAX_VALUE;
         return left + right;
     }

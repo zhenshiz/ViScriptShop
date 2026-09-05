@@ -12,9 +12,13 @@ import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.viscript_lib.gui.components.DraggableUI;
 import com.viscriptshop.gui.ShopEditor;
+import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
+import com.viscriptshop.gui.components.MerchantGiftPreview;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
+import com.viscriptshop.gui.data.MerchantItemInfo;
 import com.viscriptshop.gui.data.Shop;
+import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.UIElementUtil;
 import dev.vfyjxf.taffy.style.*;
@@ -49,7 +53,7 @@ public class ShopPreviewView extends View {
         UIElement addButton = new Button().setText("viscript_shop.editor.add.merchant").setOnClick(event -> {
             MerchantInfo merchantInfo = new MerchantInfo();
             selectedCategory.getMerchants().add(merchantInfo);
-            editor.inspectMerchant(merchantInfo, selectedCategory.getShopType());
+            editor.inspectMerchant(merchantInfo, selectedCategory);
         }).layout(layout -> {
             layout.heightPercent(100);
         });
@@ -128,7 +132,7 @@ public class ShopPreviewView extends View {
 
         draggableMerchants = new DraggableUI<>(merchants, newOrder -> {
             selectedCategory.setMerchants(newOrder);
-            lastRenderedSignature = computeSignatureFromMerchantList(selectedCategory.getShopType(), newOrder);
+            lastRenderedSignature = computeSignature(selectedCategory);
         });
 
         draggableMerchants.layout(layout -> {
@@ -139,8 +143,9 @@ public class ShopPreviewView extends View {
             layout.gapAll(5);
         });
 
-        for (MerchantInfo merchantInfo : merchants) {
-            MerchantCard card = createMerchantCard(merchantInfo);
+        for (int index = 0; index < merchants.size(); index++) {
+            MerchantInfo merchantInfo = merchants.get(index);
+            MerchantCard card = createMerchantCard(merchantInfo, "shop_preview_merchant_" + index);
             card.root.addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo));
             draggableMerchants.addSortableCard(merchantInfo, card.root, card.dragHandle);
         }
@@ -148,52 +153,48 @@ public class ShopPreviewView extends View {
         scrollerView.addScrollViewChild(draggableMerchants);
     }
 
-    private MerchantCard createMerchantCard(MerchantInfo merchantInfo) {
+    private MerchantCard createMerchantCard(MerchantInfo merchantInfo, String id) {
         UIElement merchant;
         UIElement dragHandle;
         switch (selectedCategory.getShopType()) {
             case ITEM_FOR_ITEM -> {
-                merchant = new UIElement().layout(layout -> {
-                    layout.width(100);
-                    layout.gapAll(5);
+                merchant = new UIElement().setId(id).layout(layout -> {
+                    layout.width(125);
+                    layout.gapAll(3);
                     layout.marginLeft(5);
                     layout.paddingAll(3);
                     layout.justifyContent(AlignContent.CENTER);
-                    layout.flexDirection(FlexDirection.ROW);
+                    layout.flexDirection(FlexDirection.COLUMN);
                     layout.alignItems(AlignItems.CENTER);
                 });
                 merchant.getStyle().backgroundTexture(Sprites.RECT_SOLID);
 
                 dragHandle = createDragHandle();
+                dragHandle.getLayout().height(16);
+                UIElement trade = new UIElement().layout(layout -> {
+                    layout.widthPercent(100);
+                    layout.flexDirection(FlexDirection.ROW);
+                    layout.alignItems(AlignItems.CENTER);
+                    layout.gapAll(3);
+                });
+                UIElement itemASlot = createPreviewItem(merchantInfo.getItemAInfo(), id + "_item_a", merchantInfo);
+                UIElement itemBSlot = createPreviewItem(merchantInfo.getItemBInfo(), id + "_item_b", merchantInfo);
+                UIElement resultItemSlot = createPreviewItem(merchantInfo.getItemResultInfo(), id + "_result", merchantInfo);
 
-                UIElement itemASlot = UIElementUtil.createMerchantItemDisplay(
-                                merchantInfo.getItemAInfo(),
-                                true
-                        )
-                        .addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo));
-                UIElement itemBSlot = UIElementUtil.createMerchantItemDisplay(
-                                merchantInfo.getItemBInfo(),
-                                true
-                        )
-                        .addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo));
-                UIElement resultItemSlot = UIElementUtil.createMerchantItemDisplay(
-                                merchantInfo.getItemResultInfo(),
-                                true
-                        )
-                        .addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo));
-
-                merchant.addChildren(dragHandle, itemASlot, itemBSlot,
+                trade.addChildren(dragHandle, itemASlot, itemBSlot,
                         new UIElement().style(style -> style.backgroundTexture(Icons.RIGHT_ARROW_NO_BAR_S_LIGHT)).layout(layout -> {
                             layout.width(6);
                             layout.height(6);
-                            layout.marginAll(5);
+                            layout.flexShrink(0);
                         }),
                         resultItemSlot
                 );
+                addGiftPreviews(trade, merchantInfo, id);
+                merchant.addChild(trade);
                 return new MerchantCard(merchant, dragHandle);
             }
             case CURRENCY -> {
-                merchant = new UIElement().layout(layout -> {
+                merchant = new UIElement().setId(id).layout(layout -> {
                     layout.width(55);
                     layout.flexDirection(FlexDirection.COLUMN);
                     layout.alignItems(AlignItems.CENTER);
@@ -202,14 +203,17 @@ public class ShopPreviewView extends View {
                 });
                 merchant.getStyle().backgroundTexture(Sprites.RECT_SOLID);
 
-                UIElement itemSlot = UIElementUtil.createMerchantItemDisplay(
-                                merchantInfo.getItemResultInfo(),
-                                true
-                        )
-                        .layout(layout -> {
-                            layout.width(30);
-                            layout.height(30);
-                        });
+                UIElement itemSlot = createPreviewItem(merchantInfo.getItemResultInfo(), id + "_result", merchantInfo);
+                UIElement items = new UIElement().setId(id + "_items").layout(layout -> {
+                    layout.widthPercent(100);
+                    layout.height(16);
+                    layout.flexShrink(0);
+                    layout.flexDirection(FlexDirection.ROW);
+                    layout.alignItems(AlignItems.CENTER);
+                    layout.justifyContent(AlignContent.CENTER);
+                    layout.gapAll(2);
+                }).addChild(itemSlot);
+                addGiftPreviews(items, merchantInfo, id);
 
                 MerchantInfo.TradeType tradeType = merchantInfo.getTradeType();
                 String tradeText = tradeType.getSerializedName();
@@ -227,6 +231,7 @@ public class ShopPreviewView extends View {
                 Label priceLabel = (Label) new Label()
                         .setText(Component.literal("◎" + MoneyUtil.formatCompact(merchantInfo.getMoney())))
                         .textStyle(style -> style
+                                .fontSize(8)
                                 .textColor(0xFFFFAA00)
                                 .textAlignHorizontal(Horizontal.CENTER)
                         ).layout(layout -> {
@@ -236,7 +241,9 @@ public class ShopPreviewView extends View {
                 dragHandle = createDragHandleForColumn();
 
                 // 纵向布局，拖拽句柄放在顶部
-                merchant.addChildren(dragHandle, itemSlot, tradeLabel, priceLabel);
+                tradeLabel.setId(id + "_trade");
+                priceLabel.setId(id + "_price");
+                merchant.addChildren(dragHandle, items, tradeLabel, priceLabel);
 
                 return new MerchantCard(merchant, dragHandle);
             }
@@ -246,6 +253,27 @@ public class ShopPreviewView extends View {
                 return new MerchantCard(merchant, dragHandle);
             }
         }
+    }
+
+    private MerchantItemAmountDisplay createPreviewItem(MerchantItemInfo itemInfo, String id, MerchantInfo merchantInfo) {
+        MerchantItemAmountDisplay display = MerchantItemAmountDisplay.count(itemInfo, id);
+        bindPreviewItemSelection(display, merchantInfo);
+        return display;
+    }
+
+    private void bindPreviewItemSelection(MerchantItemAmountDisplay display, MerchantInfo merchantInfo) {
+        // 在物品槽拦截鼠标事件之前选中商品，同时保留原版悬浮提示。
+        display.addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo), true);
+    }
+
+    private void addGiftPreviews(UIElement merchant, MerchantInfo merchantInfo, String id) {
+        if (!(editor.getCurrentProject() instanceof Shop shop)) {
+            return;
+        }
+        MerchantGiftPreview.create(shop.getShopInfo(), selectedCategory, merchantInfo, id).ifPresent(display -> {
+            bindPreviewItemSelection(display, merchantInfo);
+            merchant.addChild(display);
+        });
     }
 
     private UIElement createDragHandle() {
@@ -273,7 +301,7 @@ public class ShopPreviewView extends View {
 
     private void handleMerchantMouseDown(UIEvent event, MerchantInfo merchantInfo) {
         if (event.button == 0) {
-            editor.inspectMerchant(merchantInfo, selectedCategory.getShopType());
+            editor.inspectMerchant(merchantInfo, selectedCategory);
             event.stopPropagation();
             return;
         }
@@ -292,7 +320,7 @@ public class ShopPreviewView extends View {
 
             TreeBuilder.Menu merchantMenu = TreeBuilder.Menu.start()
                     .leaf("viscript_shop.button.update", () -> {
-                        editor.inspectMerchant(merchantInfo, selectedCategory.getShopType());
+                        editor.inspectMerchant(merchantInfo, selectedCategory);
                     })
                     .leaf("viscript_shop.button.copy", () -> {
                         copyMerchant(merchantInfo, index);
@@ -441,7 +469,11 @@ public class ShopPreviewView extends View {
     }
 
     private int computeSignature(CategoryInfo category) {
-        return computeSignatureFromMerchantList(category.getShopType(), category.getMerchants());
+        int signature = computeSignatureFromMerchantList(category.getShopType(), category.getMerchants());
+        if (editor.getCurrentProject() instanceof Shop shop) {
+            signature = 31 * signature + PromotionResolver.collectParentRules(shop.getShopInfo(), category).hashCode();
+        }
+        return signature;
     }
 
     private int computeSignatureFromMerchantList(CategoryInfo.ShopType shopType, List<MerchantInfo> merchants) {

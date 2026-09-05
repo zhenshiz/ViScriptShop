@@ -39,6 +39,9 @@ public class ShopRegistries {
         private List<String> flags = new ArrayList<>();
         @Persisted
         private String outputTargetId = ItemOutputTargets.PLAYER_INVENTORY;
+        /** 玩家偏好的虚拟货币商品布局；旧存档未配置时仍使用列表。 */
+        @Persisted
+        private boolean currencyGridLayout;
 
         /**
          * 设置玩家持有的 VSS 货币余额。

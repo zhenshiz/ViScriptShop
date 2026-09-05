@@ -10,6 +10,8 @@ import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.ShopInfo;
 import com.viscriptshop.network.s2c.S2CPayload;
+import com.viscriptshop.promotion.PromotionResolver;
+import com.viscriptshop.promotion.condition.PlayerItemCondition;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -37,6 +39,14 @@ public class GetItemCountC2SPayload {
         AggregatedResources resources = new AggregatedResources();
         shopInfo.getCategoryInfos().forEach(categoryInfo -> {
             categoryInfo.getMerchants().forEach(merchantInfo -> {
+                // 消耗型条件也显示在购物车成本中，因此计数快照需要覆盖条件物品。
+                for (var scoped : PromotionResolver.resolve(shopInfo, categoryInfo, merchantInfo).rules()) {
+                    for (var condition : scoped.rule().getConditions()) {
+                        if (condition != null && condition.getCondition() instanceof PlayerItemCondition item) {
+                            resources.addItemEntry(item.getItem(), 1, item.getMatchRule());
+                        }
+                    }
+                }
                 if (categoryInfo.getShopType().equals(CategoryInfo.ShopType.ITEM_FOR_ITEM)) {
                     resources.addItemEntry(merchantInfo.getSerializedItemA(), 1, merchantInfo.getItemAMatchRule());
                     resources.addItemEntry(merchantInfo.getSerializedItemB(), 1, merchantInfo.getItemBMatchRule());
@@ -47,7 +57,7 @@ public class GetItemCountC2SPayload {
         });
 
         resources.getItemEntries().removeIf(entry -> {
-            int count = entry.getItemForPlayerCount(player);
+            long count = entry.getItemForPlayerCount(player);
             if (count <= 0) return true;
             entry.setCount(count);
             return false;

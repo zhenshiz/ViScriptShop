@@ -24,8 +24,10 @@ public class C2SPayload {
     public static final String MOD_ID = ViscriptShop.MOD_ID + ":";
     public static final String GET_SHOP_INFO_C2S = MOD_ID + "get_shop_info_c2s";
     public static final String OPEN_SHOP_UI_C2S = MOD_ID + "open_shop_ui_c2s";
+    public static final String OPEN_FTB_SHOP_C2S = MOD_ID + "open_ftb_shop_c2s";
     public static final String UPLOAD_SHOP_FILE_C2S = MOD_ID + "upload_shop_file_c2s";
     public static final String SET_OUTPUT_TARGET_C2S = MOD_ID + "set_output_target_c2s";
+    public static final String SET_CURRENCY_LAYOUT_C2S = MOD_ID + "set_currency_layout_c2s";
 
     @RPCPacket(GET_SHOP_INFO_C2S)
     public static void getShopInfo(RPCSender sender) {
@@ -46,6 +48,12 @@ public class C2SPayload {
         ViScriptShopServerUtil.serverOpenShop(sender.asPlayer(), shopFileName, categoryId, merchantId);
     }
 
+    @RPCPacket(OPEN_FTB_SHOP_C2S)
+    public static void openFtbShop(RPCSender sender) {
+        ServerPlayer player = sender.asPlayer();
+        if (player != null) ViScriptShopServerUtil.serverOpenFtbShop(player);
+    }
+
     @RPCPacket(UPLOAD_SHOP_FILE_C2S)
     public static void uploadShopFile(RPCSender sender, CompoundTag request) {
         ShopEditorUploads.receiveShopUpload(sender, request);
@@ -58,6 +66,16 @@ public class C2SPayload {
 
         ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
         data.setOutputTargetId(ItemOutputTargets.resolve(outputTargetId).name());
+        player.setData(ShopRegistries.MONEY, data);
+    }
+
+    @RPCPacket(SET_CURRENCY_LAYOUT_C2S)
+    public static void setCurrencyLayout(RPCSender sender, boolean gridLayout) {
+        ServerPlayer player = sender.asPlayer();
+        if (player == null) return;
+
+        ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
+        data.setCurrencyGridLayout(gridLayout);
         player.setData(ShopRegistries.MONEY, data);
     }
 }

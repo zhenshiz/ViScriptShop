@@ -90,6 +90,16 @@ public class ShopEditor extends FunctionFileEditor {
         shopInspectorView.inspectMerchant(merchantInfo, shopType);
     }
 
+    /**
+     * 打开商品检查器，并保留其所属分类以解析上级促销规则。
+     *
+     * @param merchantInfo 当前商品
+     * @param categoryInfo 商品所属分类
+     */
+    public void inspectMerchant(MerchantInfo merchantInfo, CategoryInfo categoryInfo) {
+        shopInspectorView.inspectMerchant(merchantInfo, categoryInfo);
+    }
+
     private void selectInspectorView() {
         var container = rightWindow.getRightTop();
         if (shopInspectorView.getViewContainer() != container ||

@@ -35,7 +35,7 @@ public class Shop implements IRuntimeFileProject {
     public static final String SUFFIX = ".shop";
     public static final EditorFileFormat FORMAT = EditorFileFormat.compressed(ViscriptShop.MOD_ID, "shop", SUFFIX);
     public static final ProjectType PROVIDER = new ShopFunctionFileProjectType();
-    public static final int VERSION = 4;
+    public static final int VERSION = 7;
     public static final String VERSION_TAG = "version_num";
     public ShopInfo shopInfo;
 
@@ -206,8 +206,103 @@ public class Shop implements IRuntimeFileProject {
             case 1 -> migrateV1ToV2(shopTag);
             case 2 -> migrateV2ToV3(shopTag);
             case 3 -> migrateV3ToV4(shopTag);
+            case 4 -> migrateV4ToV5(shopTag);
+            case 5 -> migrateV5ToV6(shopTag);
+            case 6 -> migrateV6ToV7(shopTag);
             default -> shopTag;
         };
+    }
+
+    private static CompoundTag migrateV6ToV7(CompoundTag shopTag) {
+        CompoundTag migratedTag = shopTag.copy();
+        if (!(migratedTag.get("categoryInfos") instanceof ListTag categories)) {
+            return migratedTag;
+        }
+        for (Tag categoryTag : categories) {
+            if (!(categoryTag instanceof CompoundTag category)
+                    || !(category.get("merchants") instanceof ListTag merchants)) {
+                continue;
+            }
+            for (Tag merchantTag : merchants) {
+                if (!(merchantTag instanceof CompoundTag merchant)) {
+                    continue;
+                }
+                ListTag commands = new ListTag();
+                if (merchant.get("command") instanceof StringTag legacyCommand) {
+                    for (String command : legacyCommand.getAsString().split(";")) {
+                        String normalized = command.trim();
+                        if (!normalized.isEmpty()) {
+                            commands.add(StringTag.valueOf(normalized));
+                        }
+                    }
+                }
+                if (!merchant.contains("commands", Tag.TAG_LIST)) {
+                    merchant.put("commands", commands);
+                }
+                merchant.remove("command");
+            }
+        }
+        return migratedTag;
+    }
+
+    private static CompoundTag migrateV5ToV6(CompoundTag shopTag) {
+        CompoundTag migratedTag = shopTag.copy();
+        migratedTag.putBoolean("promotionEnabled", hasListEntries(migratedTag, "promotionRules"));
+
+        if (!(migratedTag.get("categoryInfos") instanceof ListTag categories)) {
+            return migratedTag;
+        }
+        for (Tag categoryTag : categories) {
+            if (!(categoryTag instanceof CompoundTag category)) {
+                continue;
+            }
+            category.putBoolean("promotionEnabled", hasMeaningfulPromotionSettings(category));
+            category.putBoolean("stageRestrictionEnabled", hasStageSettings(category));
+            if (!(category.get("merchants") instanceof ListTag merchants)) {
+                continue;
+            }
+            for (Tag merchantTag : merchants) {
+                if (merchantTag instanceof CompoundTag merchant) {
+                    merchant.putBoolean("promotionEnabled", hasMeaningfulPromotionSettings(merchant));
+                    merchant.putBoolean("stageRestrictionEnabled", hasStageSettings(merchant));
+                }
+            }
+        }
+        return migratedTag;
+    }
+
+    private static boolean hasMeaningfulPromotionSettings(CompoundTag owner) {
+        if (hasListEntries(owner, "promotionRules")) {
+            return true;
+        }
+        if (owner.contains("inheritParentPromotions", Tag.TAG_BYTE)
+                && !owner.getBoolean("inheritParentPromotions")) {
+            return true;
+        }
+        String aggregation = owner.getString("promotionAggregation");
+        return !aggregation.isEmpty()
+                && !aggregation.endsWith(".inherit")
+                && !aggregation.equalsIgnoreCase("inherit");
+    }
+
+    private static boolean hasStageSettings(CompoundTag owner) {
+        return hasListEntries(owner, "flagGroups") || hasListEntries(owner, "lockMessages");
+    }
+
+    private static boolean hasListEntries(CompoundTag owner, String key) {
+        Tag value = owner.get(key);
+        if (value instanceof ListTag list) {
+            return !list.isEmpty();
+        }
+        if (value instanceof CompoundTag wrapper && wrapper.get("payload") instanceof ListTag list) {
+            return !list.isEmpty();
+        }
+        return false;
+    }
+
+    private static CompoundTag migrateV4ToV5(CompoundTag shopTag) {
+        // 第五版新增商店、分类和商品三级促销字段；旧商店由数据模型补齐安全默认值。
+        return shopTag.copy();
     }
 
     private static CompoundTag migrateV1ToV2(CompoundTag shopTag) {

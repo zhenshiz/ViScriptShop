@@ -2,7 +2,8 @@ package com.viscriptshop.compat;
 
 import com.viscriptshop.Config;
 import com.viscriptshop.ViscriptShop;
-import com.viscriptshop.util.ViScriptShopClientUtil;
+import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscriptshop.network.c2s.C2SPayload;
 import dev.ftb.mods.ftblibrary.api.sidebar.SidebarButtonCreatedEvent;
 import dev.ftb.mods.ftblibrary.sidebar.RegisteredSidebarButton;
 
@@ -20,7 +21,7 @@ public class FtbLibraryComPat {
 
     public static void click() {
         if (ViscriptShop.isFtbLibraryLoaded()) {
-            ViScriptShopClientUtil.clientOpenShopSelector();
+            RPCPacketDistributor.rpcToServer(C2SPayload.OPEN_FTB_SHOP_C2S);
         }
     }
 }

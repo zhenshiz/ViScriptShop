@@ -9,6 +9,7 @@ import com.viscript_lib.gui.editor.ViScriptEditorWindow;
 import com.viscriptshop.compat.ModComPat;
 import com.viscriptshop.gui.ShopEditor;
 import com.viscriptshop.gui.data.*;
+import com.viscriptshop.promotion.PromotionRegistries;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.Minecraft;
@@ -32,6 +33,7 @@ public class ViscriptShop {
     private static ShopSavedData shopSavedData;
 
     public ViscriptShop(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
+        PromotionRegistries.init();
         ShopRegistries.ATTACHMENT_TYPES.register(modEventBus);
         ModComPat.init(dist);
         PlayerUIMenuType.register(ShopEditor.SHOP_ID, ignored -> player -> {

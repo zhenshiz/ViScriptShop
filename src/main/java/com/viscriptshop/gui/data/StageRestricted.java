@@ -16,6 +16,20 @@ import java.util.List;
  */
 public interface StageRestricted {
     /**
+     * 返回阶段限制系统是否启用。
+     *
+     * @return 启用阶段限制时返回 {@code true}
+     */
+    boolean isStageRestrictionEnabled();
+
+    /**
+     * 更新阶段限制系统的启用状态。
+     *
+     * @param  stageRestrictionEnabled 新的启用状态
+     */
+    void setStageRestrictionEnabled(boolean stageRestrictionEnabled);
+
+    /**
      * 获取多个阶段条件组之间的组合关系。
      *
      * @return 条件组关系；未设置时可返回 {@code null}
@@ -66,6 +80,9 @@ public interface StageRestricted {
      * @return 满足阶段条件或没有有效条件时返回 {@code true}
      */
     default boolean canAccess(Collection<String> playerFlags) {
+        if (!isStageRestrictionEnabled()) {
+            return true;
+        }
         Collection<String> activeFlags = playerFlags == null ? List.of() : playerFlags;
         return MerchantFlagGroup.canAccess(getFlagGroupMode(), getFlagGroups(), activeFlags);
     }
@@ -81,6 +98,9 @@ public interface StageRestricted {
      * @return 锁定时的提示行，或已经解锁时的空列表
      */
     default List<Component> getLockTooltips(Collection<String> playerFlags) {
+        if (!isStageRestrictionEnabled()) {
+            return List.of();
+        }
         Collection<String> activeFlags = playerFlags == null ? List.of() : playerFlags;
         if (canAccess(activeFlags)) {
             return List.of();

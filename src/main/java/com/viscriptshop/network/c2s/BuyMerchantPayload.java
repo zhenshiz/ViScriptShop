@@ -15,6 +15,9 @@ import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.ShopInfo;
 import com.viscriptshop.network.s2c.S2CPayload;
+import com.viscriptshop.promotion.PromotionEngine;
+import com.viscriptshop.promotion.ConditionItemPayment;
+import com.viscriptshop.promotion.TradeQuote;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import net.minecraft.commands.CommandSourceStack;
@@ -33,8 +36,10 @@ public class BuyMerchantPayload {
         ServerPlayer player = sender.asPlayer();
         if (player == null) return;
         ShopInfo shopInfo = ViScriptShopServerUtil.getShopInfo(shopLocation);
-        AggregatedResources cost = buildAuthoritativeCost(shopInfo, request);
-        AggregatedResources gain = buildAuthoritativeGain(shopInfo, request);
+        if (shopInfo == null) return;
+        TradeQuote quote = PromotionEngine.quote(player, shopLocation, shopInfo, request);
+        AggregatedResources cost = quote.cost();
+        AggregatedResources gain = quote.gain();
         if (gain.isEmpty()) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.shoppingCar.empty"));
@@ -49,7 +54,7 @@ public class BuyMerchantPayload {
         }
 
         var outputTarget = ItemOutputTargets.resolve(outputTargetId);
-        if (!gain.getItems().isEmpty() && !outputTarget.isItemOutputAvailable(player)) {
+        if (!gain.getResourceItems().isEmpty() && !outputTarget.isItemOutputAvailable(player)) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable(
                             "viscript_shop.message.output_target.unavailable",
@@ -114,10 +119,19 @@ public class BuyMerchantPayload {
             return;
         }
 
-        // 判断数量是否足够
-        for (AggregatedResources.ItemEntry itemEntry : cost.getItemEntries()) {
+        // 先规划整车优惠券，报价和任何失败分支都不会扣除物品。
+        ConditionItemPayment conditionPayment = ConditionItemPayment.plan(player.getInventory(), quote.conditionCosts());
+        if (!conditionPayment.isAffordable()) {
+            RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
+                    Component.translatable("viscript_shop.message.promotion.items_unavailable"));
+            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            return;
+        }
+        var regularItemCosts = quote.regularItemCosts();
+        // 普通商品成本不能占用已经预留的优惠券。
+        for (AggregatedResources.ItemEntry itemEntry : regularItemCosts) {
             var itemStack = itemEntry.getItemStack();
-            if (!itemStack.isEmpty() && itemEntry.getItemForPlayerCount(player) < itemEntry.getCount()) {
+            if (!itemStack.isEmpty() && conditionPayment.availableFor(player, itemEntry) < itemEntry.getCount()) {
                 // 物品数量不够
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR, Component.translatable("viscript_shop.message.notEnoughItem", itemStack.getItem().getDescription().getString()));
                 NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
@@ -137,8 +151,13 @@ public class BuyMerchantPayload {
             return;
         }
 
-        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.SUCCESS, Component.translatable("viscript_shop.message.buySuccess"));
-        NeoForge.EVENT_BUS.post(new ShopServerEvent.BuySuccess(player, shopInfo, cost, gain));
+        // 所有可失败的交易检查通过后，才从之前核对过的实际栏位扣券。
+        if (!conditionPayment.consume()) {
+            RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
+                    Component.translatable("viscript_shop.message.promotion.items_unavailable"));
+            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            return;
+        }
 
         // 扣减库存
         for (var purchaseEntry : gain.getPurchaseEntries()) {
@@ -167,7 +186,7 @@ public class BuyMerchantPayload {
         }
 
         // 删除物品
-        for (AggregatedResources.ItemEntry itemEntry : cost.getItemEntries()) {
+        for (AggregatedResources.ItemEntry itemEntry : regularItemCosts) {
             itemEntry.removeItemForPlayer(player);
         }
 
@@ -178,7 +197,12 @@ public class BuyMerchantPayload {
         }
 
         // 给予玩家物品
-        gain.getItems().forEach(itemStack -> ItemOutputTargets.giveItem(player, outputTargetId, itemStack));
+        gain.getResourceItems().forEach(itemEntry -> ItemOutputTargets.giveItem(
+                player,
+                outputTargetId,
+                itemEntry.getItemStack(),
+                itemEntry.getCount()
+        ));
 
         // 给予玩家经验
         if (gain.getTotalXp() > 0) player.giveExperiencePoints(gain.getTotalXp());
@@ -186,9 +210,13 @@ public class BuyMerchantPayload {
         // 执行指令
         if (!gain.getCommands().isEmpty()) {
             for (String command : gain.getCommands()) {
-                executeCommands(player, command);
+                executeCommand(player, command);
             }
         }
+
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.SUCCESS,
+                Component.translatable("viscript_shop.message.buySuccess"));
+        NeoForge.EVENT_BUS.post(new ShopServerEvent.BuySuccess(player, shopInfo, cost, gain));
 
         // 交易全部完成后以服务端真实背包为准刷新物品计数，再重新加载 UI。
         GetItemCountC2SPayload.sendItemCountSnapshot(player, shopInfo);
@@ -196,97 +224,28 @@ public class BuyMerchantPayload {
                 ViScriptShopServerUtil.getPlayerVisibleShopInfo(player, shopLocation, shopInfo));
     }
 
-    public static void executeCommands(ServerPlayer player, String value) {
-        var commands = value.split(";");
-        for (var command : commands) {
-            command = command.trim();
-            if (!command.isBlank()) {
-                MinecraftServer server = Platform.getMinecraftServer();
-                CommandSourceStack commandSource = player.createCommandSourceStack().withPermission(Commands.LEVEL_GAMEMASTERS).withSuppressedOutput();
-                var dispatcher = server.getCommands().getDispatcher();
-                try {
-                    dispatcher.execute(dispatcher.parse(command, commandSource));
-                } catch (UnsupportedOperationException e) {
-                    server.getCommands().performPrefixedCommand(commandSource, command);
-                } catch (CommandSyntaxException e) {
-                    ViscriptShop.LOGGER.error("Error executing command on server: {}", command, e);
-                }
+    /**
+     * 以当前玩家为上下文执行一条商品指令。
+     *
+     * <p>该方法不会拆分指令文本；多条指令由商品的指令列表分别提供。
+     *
+     * @param player 完成交易的服务端玩家
+     * @param value 一条完整指令
+     */
+    public static void executeCommand(ServerPlayer player, String value) {
+        String command = value == null ? "" : value.trim();
+        if (!command.isBlank()) {
+            MinecraftServer server = Platform.getMinecraftServer();
+            CommandSourceStack commandSource = player.createCommandSourceStack().withPermission(Commands.LEVEL_GAMEMASTERS).withSuppressedOutput();
+            var dispatcher = server.getCommands().getDispatcher();
+            try {
+                dispatcher.execute(dispatcher.parse(command, commandSource));
+            } catch (UnsupportedOperationException e) {
+                server.getCommands().performPrefixedCommand(commandSource, command);
+            } catch (CommandSyntaxException e) {
+                ViscriptShop.LOGGER.error("Error executing command on server: {}", command, e);
             }
         }
     }
 
-    private static AggregatedResources buildAuthoritativeCost(ShopInfo shopInfo, AggregatedResources request) {
-        AggregatedResources cost = new AggregatedResources();
-        for (AggregatedResources.PurchaseEntry purchaseEntry : request.getPurchaseEntries()) {
-            if (purchaseEntry.getBuyCount() <= 0) continue;
-
-            CategoryInfo categoryInfo = findCategory(shopInfo, purchaseEntry.getCategoryId());
-            if (categoryInfo == null) continue;
-            MerchantInfo merchantInfo = findMerchant(categoryInfo, purchaseEntry.getMerchantId());
-            if (merchantInfo == null) continue;
-
-            cost.getPurchaseEntries().add(new AggregatedResources.PurchaseEntry(
-                    purchaseEntry.getCategoryId(),
-                    purchaseEntry.getMerchantId(),
-                    purchaseEntry.getBuyCount()
-            ));
-            switch (categoryInfo.getShopType()) {
-                case ITEM_FOR_ITEM -> {
-                    cost.addItemEntry(merchantInfo.getSerializedItemA(), purchaseEntry.getBuyCount(), merchantInfo.getItemAMatchRule());
-                    cost.addItemEntry(merchantInfo.getSerializedItemB(), purchaseEntry.getBuyCount(), merchantInfo.getItemBMatchRule());
-                }
-                case CURRENCY -> {
-                    switch (merchantInfo.getTradeType()) {
-                        case BUY -> cost.addMoney(merchantInfo.getMoney(), purchaseEntry.getBuyCount());
-                        case SELL -> cost.addItemEntry(merchantInfo.getSerializedItemResult(), purchaseEntry.getBuyCount(), null);
-                    }
-                }
-            }
-        }
-        return cost;
-    }
-
-    private static AggregatedResources buildAuthoritativeGain(ShopInfo shopInfo, AggregatedResources request) {
-        AggregatedResources gain = new AggregatedResources();
-        for (AggregatedResources.PurchaseEntry purchaseEntry : request.getPurchaseEntries()) {
-            if (purchaseEntry.getBuyCount() <= 0) continue;
-
-            CategoryInfo categoryInfo = findCategory(shopInfo, purchaseEntry.getCategoryId());
-            if (categoryInfo == null) continue;
-            MerchantInfo merchantInfo = findMerchant(categoryInfo, purchaseEntry.getMerchantId());
-            if (merchantInfo == null) continue;
-
-            gain.getPurchaseEntries().add(new AggregatedResources.PurchaseEntry(
-                    purchaseEntry.getCategoryId(),
-                    purchaseEntry.getMerchantId(),
-                    purchaseEntry.getBuyCount()
-            ));
-            gain.addXp(merchantInfo.getXp(), purchaseEntry.getBuyCount());
-            gain.addCommand(merchantInfo.getCommand());
-            switch (categoryInfo.getShopType()) {
-                case ITEM_FOR_ITEM -> gain.addItem(merchantInfo.getSerializedItemResult(), purchaseEntry.getBuyCount());
-                case CURRENCY -> {
-                    switch (merchantInfo.getTradeType()) {
-                        case BUY -> gain.addItem(merchantInfo.getSerializedItemResult(), purchaseEntry.getBuyCount());
-                        case SELL -> gain.addMoney(merchantInfo.getMoney(), purchaseEntry.getBuyCount());
-                    }
-                }
-            }
-        }
-        return gain;
-    }
-
-    private static CategoryInfo findCategory(ShopInfo shopInfo, String categoryId) {
-        return shopInfo.getCategoryInfos().stream()
-                .filter(category -> category.getId().equals(categoryId))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private static MerchantInfo findMerchant(CategoryInfo categoryInfo, String merchantId) {
-        return categoryInfo.getMerchants().stream()
-                .filter(merchant -> merchant.getId().equals(merchantId))
-                .findFirst()
-                .orElse(null);
-    }
 }

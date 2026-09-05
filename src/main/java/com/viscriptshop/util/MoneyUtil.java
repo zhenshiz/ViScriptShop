@@ -56,11 +56,27 @@ public final class MoneyUtil {
      * @param count 数量倍数
      * @return 规范化后的乘积；任一参数非正时返回零
      */
-    public static double multiply(double amount, int count) {
+    public static double multiply(double amount, long count) {
         if (!isPositive(amount) || count <= 0) {
             return 0;
         }
         return toDouble(BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(count)));
+    }
+
+    /**
+     * 使用非负十进制倍率计算金额，并在溢出时饱和。
+     *
+     * <p>该重载用于折扣率，避免先执行二进制浮点乘法而把无意义的小数尾数写入余额。
+     *
+     * @param amount 原始金额
+     * @param factor 非负倍率
+     * @return 规范化后的金额；金额或倍率非正时返回零
+     */
+    public static double multiply(double amount, double factor) {
+        if (!isPositive(amount) || !Double.isFinite(factor) || factor <= 0) {
+            return 0;
+        }
+        return toDouble(BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(factor)));
     }
 
     /**

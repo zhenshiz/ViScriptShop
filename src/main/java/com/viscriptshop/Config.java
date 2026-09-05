@@ -9,6 +9,14 @@ public class Config {
     //是否打开FTB Library的按钮来允许打开商店
     public static ModConfigSpec.BooleanValue showFtbLibraryButton = null;
 
+    /**
+     * FTB 侧边栏按钮默认打开的商店路径。
+     *
+     * <p>该值由服务端读取，格式与 {@code /viscript_shop open} 后的商店参数一致；
+     * 留空时显示快捷商店选择界面。
+     */
+    public static ModConfigSpec.ConfigValue<String> ftbDefaultShop;
+
     //是否使用MagicCoins的货币来替换本模组的货币
     public static ModConfigSpec.BooleanValue isReplaceMoneyToMagicCoin = null;
 
@@ -33,6 +41,9 @@ public class Config {
         if (ViscriptShop.isFtbLibraryLoaded()) {
             showFtbLibraryButton = CONFIG_BUILDER.define("showFtbLibraryButton", false);
         }
+        ftbDefaultShop = CONFIG_BUILDER
+                .translation("viscript_shop.configuration.ftbDefaultShop")
+                .define("ftbDefaultShop", "");
         if (ViscriptShop.isMagicCoinsLoaded()) {
             isReplaceMoneyToMagicCoin = CONFIG_BUILDER.define("isReplaceMoneyToMagicCoin", false);
         }

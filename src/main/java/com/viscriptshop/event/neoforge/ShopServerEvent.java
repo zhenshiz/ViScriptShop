@@ -11,10 +11,10 @@ import net.neoforged.bus.api.ICancellableEvent;
 /**
  * 表示服务端商店购买流程事件。
  *
- * <p>事件监听器属于 Minecraft 运行时边界，通常应通过
- * {@link AggregatedResources#getItems()} 和
- * {@link AggregatedResources.ItemEntry#getItemStack()} 获取原版物品堆。只有需要检查
- * 缺失 ID 或无损转发序列化数据时，才使用对应的 {@code getSerialized...} 方法。
+ * <p>事件监听器属于 Minecraft 运行时边界，可通过
+ * {@link AggregatedResources.ItemEntry#getItemStack()} 获取用于匹配或渲染的原版物品模板，
+ * 并通过 {@link AggregatedResources.ItemEntry#getCount()} 读取完整长整型数量。
+ * {@link AggregatedResources#getItems()} 仅作为旧接口兼容视图保留，超过整数上限的数量会被截断。
  */
 @Getter
 @AllArgsConstructor
