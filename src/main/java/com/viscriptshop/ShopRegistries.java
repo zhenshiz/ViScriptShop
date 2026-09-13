@@ -46,12 +46,12 @@ public class ShopRegistries {
         /**
          * 设置玩家持有的 VSS 货币余额。
          *
-         * <p>负数、非数字和无穷值均会被规范化为零。
+         * <p>保留负余额；非数字和无穷值会被规范化为零。
          *
          * @param money 新的货币余额
          */
         public void setMoney(double money) {
-            this.money = MoneyUtil.normalize(money);
+            this.money = MoneyUtil.normalizeBalance(money);
         }
     }
 }

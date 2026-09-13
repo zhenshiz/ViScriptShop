@@ -1,148 +1,131 @@
 package com.viscriptshop.promotion;
 
+import com.viscript_lib.util.item.ItemUtil;
+import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.data.AggregatedResources;
+import lombok.Getter;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
-import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * 只读规划优惠券的实际栏位，所有交易检查通过后才一次性扣除。
- * 用容量匹配解决宽松/严格组件条件重叠，不能把同一张券分给多条促销。
+ * 只读规划优惠券的全容器计数，所有交易检查通过后才一次性扣除。
+ * 与商品成本使用同一套 ViScriptLib 容器助手统计（随身背包、末影箱、合成槽与手持及已联动外部存储）。
+ * 规则互相匹配对方模板的条件条目归入同一池共享计数，防止同一张券分给多条促销。
  */
 public final class ConditionItemPayment {
-    private final Container inventory;
-    private final List<ItemStack> snapshot;
-    private final int[] reserved;
+    private final List<ItemPool> pools;
+    @Getter
     private final boolean affordable;
     private boolean consumed;
 
-    private ConditionItemPayment(Container inventory, List<ItemStack> snapshot, int[] reserved, boolean affordable) {
-        this.inventory = inventory;
-        this.snapshot = snapshot;
-        this.reserved = reserved;
+    private ConditionItemPayment(List<ItemPool> pools, boolean affordable) {
+        this.pools = pools;
         this.affordable = affordable;
     }
 
-    public static ConditionItemPayment plan(Container inventory, List<AggregatedResources.ItemEntry> costs) {
-        int slots = inventory.getContainerSize();
-        List<ItemStack> snapshot = new ArrayList<>();
-        long available = 0;
-        for (int i = 0; i < slots; i++) {
-            ItemStack stack = inventory.getItem(i).copy();
-            snapshot.add(stack);
-            available += stack.getCount();
-        }
-        long required = 0;
+    public static ConditionItemPayment plan(ServerPlayer player, List<AggregatedResources.ItemEntry> costs) {
+        if (costs.isEmpty()) return new ConditionItemPayment(List.of(), true);
         for (var cost : costs) {
-            if (cost.isMissingItem() || cost.getCount() > available - required) {
-                return new ConditionItemPayment(inventory, snapshot, new int[slots], false);
+            if (cost.isMissingItem() && cost.getCount() > 0) {
+                return new ConditionItemPayment(List.of(), false);
             }
-            required += cost.getCount();
         }
-        int sink = slots + costs.size() + 1;
-        List<List<Edge>> graph = new ArrayList<>();
-        for (int i = 0; i <= sink; i++) graph.add(new ArrayList<>());
-        List<Edge> supplies = new ArrayList<>();
-        for (int slot = 0; slot < slots; slot++) {
-            supplies.add(connect(graph, 0, slot + 1, snapshot.get(slot).getCount()));
-            for (int c = 0; c < costs.size(); c++) {
-                var cost = costs.get(c);
-                if (cost.getMatchRule().matches(snapshot.get(slot), cost.getItemStack())) {
-                    connect(graph, slot + 1, slots + c + 1, snapshot.get(slot).getCount());
+        // 传递闭包分池：互相兼容的条目通过并查集并入同一池
+        int size = costs.size();
+        int[] parent = new int[size];
+        for (int i = 0; i < size; i++) parent[i] = i;
+        for (int i = 0; i < size; i++) {
+            for (int j = i + 1; j < size; j++) {
+                if (poolCompatible(costs.get(i), costs.get(j))) {
+                    parent[find(parent, i)] = find(parent, j);
                 }
             }
         }
-        for (int c = 0; c < costs.size(); c++) {
-            connect(graph, slots + c + 1, sink, costs.get(c).getCount());
+        List<ItemPool> pools = new ArrayList<>();
+        Map<Integer, ItemPool> byRoot = new HashMap<>();
+        for (int i = 0; i < size; i++) {
+            ItemPool pool = byRoot.computeIfAbsent(find(parent, i), root -> {
+                ItemPool created = new ItemPool();
+                pools.add(created);
+                return created;
+            });
+            pool.entries.add(costs.get(i));
         }
-        long flow = 0;
-        while (flow < required) {
-            int[] previous = new int[sink + 1];
-            Arrays.fill(previous, -1);
-            Edge[] path = new Edge[sink + 1];
-            ArrayDeque<Integer> queue = new ArrayDeque<>();
-            previous[0] = 0;
-            queue.add(0);
-            while (!queue.isEmpty() && previous[sink] == -1) {
-                int node = queue.remove();
-                for (Edge edge : graph.get(node)) {
-                    if (edge.remaining > 0 && previous[edge.to] == -1) {
-                        previous[edge.to] = node;
-                        path[edge.to] = edge;
-                        queue.add(edge.to);
-                    }
-                }
+        boolean affordable = true;
+        for (ItemPool pool : pools) {
+            long required = 0;
+            long supply = 0;
+            for (var entry : pool.entries) {
+                required += entry.getCount();
+                supply = Math.max(supply, entry.getItemForPlayerCount(player));
             }
-            if (previous[sink] == -1) break;
-            long amount = required - flow;
-            for (int n = sink; n != 0; n = previous[n]) amount = Math.min(amount, path[n].remaining);
-            for (int n = sink; n != 0; n = previous[n]) {
-                Edge edge = path[n];
-                edge.remaining -= amount;
-                graph.get(edge.to).get(edge.reverse).remaining += amount;
+            if (supply < required) {
+                affordable = false;
+                break;
             }
-            flow += amount;
         }
-        int[] reserved = new int[slots];
-        for (int i = 0; i < slots; i++) reserved[i] = snapshot.get(i).getCount() - (int) supplies.get(i).remaining;
-        return new ConditionItemPayment(inventory, snapshot, reserved, flow == required);
+        return new ConditionItemPayment(List.copyOf(pools), affordable);
     }
 
-    public boolean isAffordable() {
-        return affordable;
+    /** 只有两条规则的物品集合互相覆盖对方模板时才视为共享同一批物品。 */
+    private static boolean poolCompatible(AggregatedResources.ItemEntry a, AggregatedResources.ItemEntry b) {
+        return a.getMatchRule().matches(b.getItemStack(), a.getItemStack())
+                && b.getMatchRule().matches(a.getItemStack(), b.getItemStack());
+    }
+
+    private static int find(int[] parent, int node) {
+        while (parent[node] != node) {
+            parent[node] = parent[parent[node]];
+            node = parent[node];
+        }
+        return node;
     }
 
     /** 普通商品成本不能再使用已经预留给促销的那些物品。 */
     public long availableFor(ServerPlayer player, AggregatedResources.ItemEntry cost) {
+        if (!affordable) return 0;
         return Math.max(0, cost.getItemForPlayerCount(player) - reservedFor(cost));
     }
 
-    public long reservedFor(AggregatedResources.ItemEntry cost) {
+    private long reservedFor(AggregatedResources.ItemEntry cost) {
         long count = 0;
-        for (int i = 0; i < reserved.length; i++) {
-            if (reserved[i] > 0 && cost.getMatchRule().matches(snapshot.get(i), cost.getItemStack())) count += reserved[i];
+        for (ItemPool pool : pools) {
+            for (var entry : pool.entries) {
+                if (entry.getCount() > 0 && cost.getMatchRule().matches(entry.getItemStack(), cost.getItemStack())) {
+                    count = ItemUtil.saturatedAdd(count, entry.getCount());
+                }
+            }
         }
         return count;
     }
 
-    /** 失败不修改任何栏位；成功也只能调用一次。 */
-    public boolean consume() {
+    /** 失败不修改任何容器；成功也只能调用一次。 */
+    public boolean consume(ServerPlayer player) {
         if (!affordable || consumed) return false;
-        for (int slot = 0; slot < reserved.length; slot++) {
-            if (reserved[slot] > 0) {
-                ItemStack current = inventory.getItem(slot);
-                if (current.getCount() < reserved[slot] || !ItemStack.isSameItemSameComponents(current, snapshot.get(slot))) return false;
+        for (ItemPool pool : pools) {
+            for (var entry : pool.entries) {
+                if (entry.getCount() <= 0) continue;
+                var rule = entry.getMatchRule();
+                long remainder = ItemUtil.removeItemForPlayer(player, entry.getItemStack(), entry.getCount(),
+                        rule.resolvedCompareMode(), rule.resolvedComponents());
+                if (remainder > 0) {
+                    ViscriptShop.LOGGER.error("Failed to consume condition items for player {}: {} x{} remain {}",
+                            player.getGameProfile().getName(), entry.getItemStack(), entry.getCount(), remainder);
+                    consumed = true;
+                    return false;
+                }
             }
         }
-        for (int slot = 0; slot < reserved.length; slot++) {
-            if (reserved[slot] > 0) inventory.removeItem(slot, reserved[slot]);
-        }
-        if (Arrays.stream(reserved).anyMatch(count -> count > 0)) inventory.setChanged();
         consumed = true;
         return true;
     }
 
-    private static Edge connect(List<List<Edge>> graph, int from, int to, long capacity) {
-        Edge forward = new Edge(to, graph.get(to).size(), capacity);
-        graph.get(to).add(new Edge(from, graph.get(from).size(), 0));
-        graph.get(from).add(forward);
-        return forward;
-    }
-
-    private static final class Edge {
-        final int to;
-        final int reverse;
-        long remaining;
-
-        Edge(int to, int reverse, long remaining) {
-            this.to = to;
-            this.reverse = reverse;
-            this.remaining = remaining;
-        }
+    /** 同一池中的条目规则互相匹配对方模板，因此池内供应量可以共享。 */
+    private static final class ItemPool {
+        private final List<AggregatedResources.ItemEntry> entries = new ArrayList<>();
     }
 }

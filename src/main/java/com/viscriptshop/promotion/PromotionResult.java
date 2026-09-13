@@ -57,16 +57,19 @@ public final class PromotionResult {
      * 一条命中折扣的来源明细。
      *
      * @param source 规则 ID 或默认来源翻译键
+     * @param displayText 规则或事件自定义的来源文本（支持翻译键），为空时回退到来源层级文本
      * @param signedRate 带符号变化率
      * @param scope 规则所在的数据层级
      */
     public record DiscountDetail(
             String source,
+            String displayText,
             double signedRate,
             PromotionResolver.Scope scope
     ) {
         public DiscountDetail {
             source = source == null ? "" : source;
+            displayText = displayText == null ? "" : displayText;
             scope = scope == null ? PromotionResolver.Scope.MERCHANT : scope;
         }
     }

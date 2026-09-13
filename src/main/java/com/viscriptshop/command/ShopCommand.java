@@ -87,6 +87,12 @@ public class ShopCommand implements ICommand {
                                 .executes(this::setMerchantStockTarget)
                         )
                 )
+                .then(Commands.literal("addStock")
+                        .then(Commands.argument("target", StringArgumentType.greedyString())
+                                .suggests(ShopCommand::suggestSetStockTarget)
+                                .executes(this::addMerchantStockTarget)
+                        )
+                )
                 .then(Commands.literal("remove")
                         .then(Commands.argument("target", StringArgumentType.greedyString())
                                 .suggests(ShopCommand::suggestRemoveTarget)
@@ -113,7 +119,7 @@ public class ShopCommand implements ICommand {
                                                 .executes(ctx -> {
                                                     ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
                                                     double money = DoubleArgumentType.getDouble(ctx, "money");
-                                                    double removeMoney = ViScriptShopServerUtil.removeMoney(player, money);
+                                                    double removeMoney = ViScriptShopServerUtil.removeMoney(player, money, true);
                                                     ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.remove", player.getDisplayName(), MoneyUtil.format(removeMoney), MoneyUtil.format(ViScriptShopServerUtil.getMoney(player))), true);
                                                     return Command.SINGLE_SUCCESS;
                                                 })
@@ -138,7 +144,7 @@ public class ShopCommand implements ICommand {
                                                             ServerPlayer player1 = EntityArgument.getPlayer(ctx, "player1");
                                                             ServerPlayer player2 = EntityArgument.getPlayer(ctx, "player2");
                                                             double money = DoubleArgumentType.getDouble(ctx, "money");
-                                                            double removeMoney = ViScriptShopServerUtil.removeMoney(player1, money);
+                                                            double removeMoney = ViScriptShopServerUtil.removeMoney(player1, money, false);
                                                             ViScriptShopServerUtil.addMoney(player2, removeMoney);
                                                             ctx.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.money.pay", player1.getDisplayName(), MoneyUtil.format(removeMoney), player2.getDisplayName()), true);
                                                             return Command.SINGLE_SUCCESS;
@@ -272,6 +278,34 @@ public class ShopCommand implements ICommand {
         }
 
         context.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.setStock.success", merchantId, stock), true);
+        return 1;
+    }
+
+    @SneakyThrows
+    private int addMerchantStockTarget(CommandContext<CommandSourceStack> context) {
+        List<String> args = parseGreedyArguments(context, "target");
+        if (args.size() != 4) {
+            return sendInvalidUsage(context, "viscript_shop addStock <shop> <categoryId> <merchantId> <amount>");
+        }
+
+        String shop = args.getFirst();
+        String categoryId = args.get(1);
+        String merchantId = args.get(2);
+        Integer amount = parseInteger(args.get(3));
+        if (amount == null || amount <= 0) {
+            context.getSource().sendFailure(Component.translatable(
+                    "command.viscript_shop.error.invalid_stock_addition", args.get(3)));
+            return 0;
+        }
+
+        boolean success = ViScriptShopServerUtil.addMerchantStock(shop, categoryId, merchantId, amount);
+        if (!success) {
+            context.getSource().sendFailure(Component.translatable("command.viscript_shop.error.shop_not_found", shop));
+            return 0;
+        }
+
+        context.getSource().sendSuccess(() -> Component.translatable(
+                "command.viscript_shop.addStock.success", merchantId, amount), true);
         return 1;
     }
 

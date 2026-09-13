@@ -5,7 +5,7 @@ import com.viscriptshop.gui.data.AggregatedResources;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 购物车的完整成本（含优惠券）、收益、赠品，以及需从随身栏位扣除的优惠凭证。 */
+/** 购物车的完整成本（含优惠券）、收益、赠品，以及需从玩家全部容器（含末影箱与已联动外部存储）扣除的优惠凭证。 */
 public record TradeQuote(
         AggregatedResources cost,
         AggregatedResources gain,

@@ -1,6 +1,7 @@
 package com.viscriptshop.gui.components;
 
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Tooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
@@ -47,6 +48,41 @@ public final class MerchantItemAmountDisplay extends UIElement {
                                       Supplier<Component> actualText,
                                       Supplier<Component> rateText,
                                       boolean priceComparison) {
+        this(
+                UIElementUtil.createMerchantItemDisplay(itemInfo, true, 1),
+                id,
+                normalText,
+                originalText,
+                actualText,
+                rateText,
+                priceComparison
+        );
+    }
+
+    private MerchantItemAmountDisplay(IGuiTexture displayTexture,
+                                      String id,
+                                      Supplier<Component> normalText,
+                                      Supplier<Component> originalText,
+                                      Supplier<Component> actualText,
+                                      Supplier<Component> rateText) {
+        this(
+                new UIElement().style(style -> style.backgroundTexture(displayTexture)),
+                id,
+                normalText,
+                originalText,
+                actualText,
+                rateText,
+                true
+        );
+    }
+
+    private MerchantItemAmountDisplay(UIElement display,
+                                      String id,
+                                      Supplier<Component> normalText,
+                                      Supplier<Component> originalText,
+                                      Supplier<Component> actualText,
+                                      Supplier<Component> rateText,
+                                      boolean priceComparison) {
         setId(id);
         addClass("merchant-item-amount-display");
         layout(layout -> {
@@ -68,7 +104,7 @@ public final class MerchantItemAmountDisplay extends UIElement {
                     layout.positionType(TaffyPosition.RELATIVE);
                 });
         // 只隐藏原版受 int 限制的堆叠数，物品或资源图片的既有渲染与提示全部保留。
-        displayElement = UIElementUtil.createMerchantItemDisplay(itemInfo, true, 1)
+        displayElement = display
                 .setId(id + "_icon")
                 .layout(layout -> {
                     layout.width(DISPLAY_SIZE);
@@ -162,6 +198,41 @@ public final class MerchantItemAmountDisplay extends UIElement {
                 Component::empty,
                 Component::empty,
                 false
+        );
+    }
+
+    public static MerchantItemAmountDisplay count(IGuiTexture displayTexture, String id,
+                                                   Supplier<Component> countText) {
+        return new MerchantItemAmountDisplay(
+                new UIElement().style(style -> style.backgroundTexture(displayTexture)),
+                id, countText, Component::empty, Component::empty, Component::empty, false
+        );
+    }
+
+    /**
+     * 创建使用资源贴图且与物品价格相同的价格布局。
+     *
+     * @param  displayTexture 价格单位使用的资源贴图
+     * @param  id 组件的稳定标识
+     * @param  normalText 未发生促销时的金额文本提供器
+     * @param  originalText 发生促销时的原金额文本提供器
+     * @param  actualText 发生促销时的现金额文本提供器
+     * @param  rateText 发生促销时的变化率文本提供器
+     * @return 新建的资源价格组件
+     */
+    public static MerchantItemAmountDisplay price(IGuiTexture displayTexture,
+                                                   String id,
+                                                   Supplier<Component> normalText,
+                                                   Supplier<Component> originalText,
+                                                   Supplier<Component> actualText,
+                                                   Supplier<Component> rateText) {
+        return new MerchantItemAmountDisplay(
+                displayTexture,
+                id,
+                normalText,
+                originalText,
+                actualText,
+                rateText
         );
     }
 

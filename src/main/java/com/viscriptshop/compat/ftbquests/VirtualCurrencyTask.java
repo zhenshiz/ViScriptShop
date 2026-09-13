@@ -88,7 +88,7 @@ final class VirtualCurrencyTask extends Task implements ISingleLongValueTask {
             return;
         }
 
-        long submitted = (long) Math.floor(ViScriptShopServerUtil.removeMoney(player, requested));
+        long submitted = (long) Math.floor(ViScriptShopServerUtil.removeMoney(player, requested, false));
         if (submitted > 0L) {
             teamData.addProgress(this, submitted);
         }

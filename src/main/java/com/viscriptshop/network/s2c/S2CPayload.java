@@ -16,6 +16,7 @@ import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.gui.data.AggregatedResources;
 import com.viscriptshop.gui.data.Shop;
 import com.viscriptshop.gui.data.ShopInfo;
+import com.viscriptshop.promotion.condition.PlayerItemCondition;
 import com.viscriptshop.util.ViScriptShopClientUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -139,6 +140,8 @@ public class S2CPayload {
     @RPCPacket(GET_ITEM_COUNT)
     public static void getItemCount(RPCSender sender, CompoundTag tag) {
         var itemEntries = CodecUtil.deserializeList(tag, AggregatedResources.ItemEntry.CODEC, Platform.getFrozenRegistry());
+        // 同步给促销条件客户端预览，即使商店界面未打开也要更新
+        PlayerItemCondition.updateClientSnapshot(itemEntries);
         if (Minecraft.getInstance().screen instanceof ModularUIScreen screen
                 && screen.modularUI.ui.rootElement instanceof ShopUI shopUI) {
             shopUI.playerItems.clear();

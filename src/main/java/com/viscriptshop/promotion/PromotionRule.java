@@ -47,6 +47,13 @@ public class PromotionRule implements IConfigurable, IPersistedSerializable {
     @Configurable(name = "viscript_shop.data.promotion.id")
     private String id = "";
 
+    /**
+     * 悬浮提示中「（来自XX）」位置的自定义文本，支持翻译键；留空时显示来源层级。
+     */
+    @Configurable(name = "viscript_shop.data.promotion.display_text",
+            tips = "viscript_shop.data.promotion.display_text.tip")
+    private String displayText = "";
+
     @Configurable(name = "viscript_shop.data.promotion.enabled")
     private boolean enabled = true;
 
@@ -158,6 +165,7 @@ public class PromotionRule implements IConfigurable, IPersistedSerializable {
         directionConfigurator.setTips("viscript_shop.data.promotion.direction.tip");
         group.addConfigurator(directionConfigurator);
         addFieldConfigurator(group, "percentage");
+        addFieldConfigurator(group, "displayText");
     }
 
     private Configurator createConditionConfigurator(Supplier<PromotionConditionEntry> getter,

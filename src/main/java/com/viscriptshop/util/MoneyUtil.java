@@ -7,7 +7,8 @@ import java.util.Locale;
 /**
  * 提供 VSS 货币金额的校验、运算和显示格式化功能。
  *
- * <p>货币值使用非负且有限的 {@code double}。运算时使用操作数的十进制表示，避免
+ * <p>价格和交易数量使用非负且有限的 {@code double}，玩家余额允许为负数。
+ * 运算时使用操作数的十进制表示，避免
  * {@code 0.1} 等常见价格在乘法和累加后因二进制浮点误差导致余额比较失败。
  */
 public final class MoneyUtil {
@@ -27,19 +28,31 @@ public final class MoneyUtil {
     }
 
     /**
-     * 将金额规范化为可保存的余额。
+     * 将价格或交易金额规范化为非负数。
      *
      * <p>负数、非数字和无穷值均转换为零。
      *
      * @param amount 待规范化的货币金额
-     * @return 非负且有限的余额
+     * @return 非负且有限的金额
      */
     public static double normalize(double amount) {
         return Double.isFinite(amount) && amount > 0 ? amount : 0;
     }
 
     /**
-     * 将两个非负金额相加，并在溢出时饱和到 {@link Double#MAX_VALUE}。
+     * 将余额规范化为有限数，并保留负余额。
+     *
+     * <p>非数字和无穷值转换为零，负零转换为正零。
+     *
+     * @param balance 待规范化的浮点余额
+     * @return 有限的有符号余额
+     */
+    public static double normalizeBalance(double balance) {
+        return Double.isFinite(balance) && balance != 0 ? balance : 0;
+    }
+
+    /**
+     * 将两个有符号金额相加，并在溢出时饱和到正负 {@link Double#MAX_VALUE}。
      *
      * @param left 第一个货币金额
      * @param right 第二个货币金额
@@ -87,8 +100,23 @@ public final class MoneyUtil {
      * @return 扣除后的非负余额
      */
     public static double subtract(double balance, double amount) {
-        BigDecimal result = decimal(balance).subtract(decimal(amount));
-        return result.signum() <= 0 ? 0 : toDouble(result);
+        return subtract(balance, amount, false);
+    }
+
+    /**
+     * 从余额中扣除非负金额，并按指定策略处理负数结果。
+     *
+     * <p>待扣金额为负数、非数字或无穷值时视为零；溢出时饱和到正负
+     * {@code Double.MAX_VALUE}。
+     *
+     * @param balance 可为负数的浮点余额
+     * @param amount 待扣除的浮点金额
+     * @param allowNegative 是否保留负数结果；为 {@code false} 时结果最低为零
+     * @return 扣除后的有限余额
+     */
+    public static double subtract(double balance, double amount, boolean allowNegative) {
+        BigDecimal result = decimal(balance).subtract(BigDecimal.valueOf(normalize(amount)));
+        return !allowNegative && result.signum() < 0 ? 0 : toDouble(result);
     }
 
     /**
@@ -96,10 +124,11 @@ public final class MoneyUtil {
      *
      * @param balance 可用余额
      * @param amount 所需金额
-     * @return 规范化余额不少于规范化金额时返回 {@code true}
+     * @return 无需付款，或余额不少于所需金额时返回 {@code true}
      */
     public static boolean hasEnough(double balance, double amount) {
-        return decimal(balance).compareTo(decimal(amount)) >= 0;
+        double required = normalize(amount);
+        return required == 0 || decimal(balance).compareTo(BigDecimal.valueOf(required)) >= 0;
     }
 
     /**
@@ -113,9 +142,33 @@ public final class MoneyUtil {
     }
 
     /**
+     * 格式化货币金额为带千分位分隔符的完整十进制表示。
+     *
+     * <p>适合在悬浮提示中展示完整数值，例如 {@code 1234567.5} 显示为 {@code 1,234,567.5}。
+     *
+     * @param amount 待格式化的货币金额
+     * @return 规范化金额的千分位分组表示
+     */
+    public static String formatGrouped(double amount) {
+        String plain = format(amount);
+        boolean negative = plain.startsWith("-");
+        if (negative) {
+            plain = plain.substring(1);
+        }
+        int dot = plain.indexOf('.');
+        String intPart = dot < 0 ? plain : plain.substring(0, dot);
+        String fraction = dot < 0 ? "" : plain.substring(dot);
+        StringBuilder builder = new StringBuilder(intPart);
+        for (int i = builder.length() - 3; i > 0; i -= 3) {
+            builder.insert(i, ',');
+        }
+        return (negative ? "-" : "") + builder + fraction;
+    }
+
+    /**
      * 将货币金额格式化为适合 UI 标签的紧凑形式。
      *
-     * <p>小于一千的金额保留完整十进制表示；更大的金额使用 {@code k}、{@code m}、
+     * <p>绝对值小于一千的金额保留完整十进制表示；更大的金额使用 {@code k}、{@code m}、
      * {@code b}、{@code t} 和 {@code q} 后缀，超出该范围时使用科学计数法。需要显示完整值的
      * 提示文本应使用 {@link #format(double)}。
      *
@@ -123,18 +176,18 @@ public final class MoneyUtil {
      * @return 规范化金额的紧凑表示
      */
     public static String formatCompact(double amount) {
-        double normalized = normalize(amount);
-        if (normalized < 1_000) {
+        double normalized = normalizeBalance(amount);
+        if (Math.abs(normalized) < 1_000) {
             return format(normalized);
         }
-        if (normalized >= 1_000_000_000_000_000_000D) {
+        if (Math.abs(normalized) >= 1_000_000_000_000_000_000D) {
             return String.format(Locale.ROOT, "%.1e", normalized).replace(".0e", "e");
         }
 
         String[] suffixes = {"", "k", "m", "b", "t", "q"};
         int suffix = 0;
         double scaled = normalized;
-        while (scaled >= 1_000 && suffix < suffixes.length - 1) {
+        while (Math.abs(scaled) >= 1_000 && suffix < suffixes.length - 1) {
             scaled /= 1_000;
             suffix++;
         }
@@ -144,12 +197,12 @@ public final class MoneyUtil {
     }
 
     private static BigDecimal decimal(double amount) {
-        return BigDecimal.valueOf(normalize(amount));
+        return BigDecimal.valueOf(normalizeBalance(amount));
     }
 
     private static double toDouble(BigDecimal amount) {
-        if (amount.signum() <= 0) {
-            return 0;
+        if (amount.compareTo(MAX_VALUE.negate()) <= 0) {
+            return -Double.MAX_VALUE;
         }
         if (amount.compareTo(MAX_VALUE) >= 0) {
             return Double.MAX_VALUE;

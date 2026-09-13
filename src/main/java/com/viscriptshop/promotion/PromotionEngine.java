@@ -309,7 +309,7 @@ public final class PromotionEngine {
             String source = rule.getId() == null || rule.getId().isBlank()
                     ? "viscript_shop.promotion.source.rule"
                     : rule.getId();
-            details.add(new DiscountDetail(source, rate.doubleValue(), scopedRule.scope()));
+            details.add(new DiscountDetail(source, rule.getDisplayText(), rate.doubleValue(), scopedRule.scope()));
         }
 
         if (rates.isEmpty()) {

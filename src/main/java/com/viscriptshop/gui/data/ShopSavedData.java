@@ -71,6 +71,37 @@ public class ShopSavedData extends SavedData {
         setDirty();
     }
 
+    /**
+     * 增加指定商品的所有运行时剩余库存。
+     *
+     * <p>负数库存表示无限库存，因此保持不变。有限库存相加后超过
+     * {@code Integer.MAX_VALUE} 时会饱和到该上限。小于或等于零的增加量不会修改数据。
+     *
+     * @param shop 商店路径
+     * @param categoryId 分类标识
+     * @param merchantId 商品标识
+     * @param amount 要增加的正整数库存量
+     */
+    public void addMerchantStock(String shop, String categoryId, String merchantId, int amount) {
+        Map<String, Map<String, Integer>> shopStocks = merchantStocks.get(shop);
+        if (shopStocks == null || amount <= 0) {
+            return;
+        }
+
+        String stockKey = getMerchantStockKey(categoryId, merchantId);
+        boolean changed = false;
+        for (Map<String, Integer> ownerStocks : shopStocks.values()) {
+            Integer stock = ownerStocks.get(stockKey);
+            if (stock != null && stock >= 0) {
+                ownerStocks.put(stockKey, addFiniteStock(stock, amount));
+                changed = true;
+            }
+        }
+        if (changed) {
+            setDirty();
+        }
+    }
+
     public void clearMerchantStock(String shop, String categoryId, String merchantId) {
         Map<String, Map<String, Integer>> shopStocks = merchantStocks.get(shop);
         if (shopStocks == null) {
@@ -137,5 +168,9 @@ public class ShopSavedData extends SavedData {
 
     private static String getMerchantStockKey(String categoryId, String merchantId) {
         return categoryId + STOCK_KEY_SEPARATOR + merchantId;
+    }
+
+    private static int addFiniteStock(int stock, int amount) {
+        return (int) Math.min(Integer.MAX_VALUE, (long) stock + amount);
     }
 }

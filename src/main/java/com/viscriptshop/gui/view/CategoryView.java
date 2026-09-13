@@ -21,9 +21,11 @@ import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.FlexWrap;
 import lombok.Getter;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 public class CategoryView extends View {
@@ -32,6 +34,8 @@ public class CategoryView extends View {
     private CategoryInfo selectedCategory = null;
     private ShopInfo shopInfo;
     private DraggableUI<CategoryInfo> draggableCategories = null;
+    private int lastRenderedSignature;
+    private boolean categoryListDirty = true;
 
     public CategoryView(ShopEditor editor) {
         super("viscript_shop.editor.view_category");
@@ -41,24 +45,36 @@ public class CategoryView extends View {
             layout.heightPercent(100);
         });
         this.scrollerView.viewPort.getStyle().backgroundTexture(null);
+        scrollerView.viewContainer.layout(layout -> {
+            layout.paddingAll(5);
+            layout.flexDirection(FlexDirection.COLUMN);
+        }).addEventListener(UIEvents.TICK, event -> reloadCategoryList());
         this.addChildren(this.scrollerView);
     }
 
     public void loadView() {
         if (editor.getCurrentProject() instanceof Shop shop) {
             this.shopInfo = shop.getShopInfo();
-            scrollerView.viewContainer.layout(layout -> {
-                layout.paddingAll(5);
-                layout.flexDirection(FlexDirection.COLUMN);
-            }).addEventListener(UIEvents.TICK, event -> {
-                reloadCategoryList();
-            });
+            selectedCategory = null;
+            draggableCategories = null;
+            categoryListDirty = true;
         }
     }
 
     public void reloadCategoryList() {
         if (shopInfo == null) return;
         if (draggableCategories != null && draggableCategories.isDragging()) return;
+
+        int signature = System.identityHashCode(selectedCategory);
+        for (CategoryInfo category : shopInfo.getCategoryInfos()) {
+            // 分类卡片只依赖名称和图标，不对分类中的全部商品求哈希。
+            ItemStack icon = category.getIconItem();
+            signature = 31 * signature + Objects.hash(System.identityHashCode(category), category.getName(),
+                    category.getIconType(), category.getIconTexture(), ItemStack.hashItemAndComponents(icon), icon.getCount());
+        }
+        if (!categoryListDirty && signature == lastRenderedSignature) return;
+        categoryListDirty = false;
+        lastRenderedSignature = signature;
 
         scrollerView.clearAllScrollViewChildren();
 

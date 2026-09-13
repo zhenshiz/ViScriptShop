@@ -165,6 +165,50 @@ public class ViScriptShopServerUtil {
         return false;
     }
 
+    /**
+     * 增加商品的基准库存及当前世界中所有对应的运行时剩余库存。
+     *
+     * <p>该操作保留每个库存所有者已经消耗的数量。负数库存表示无限库存，因此保持不变；
+     * 有限库存超过 {@code Integer.MAX_VALUE} 时饱和到该上限。小于或等于零的增加量不生效。
+     *
+     * @param shopLocation 商店路径
+     * @param categoryId 分类标识
+     * @param merchantId 商品标识
+     * @param amount 要增加的正整数库存量
+     * @return 找到商品且增加量有效时返回 {@code true}
+     */
+    @Info("增加商品库存，保留当前世界中已经消耗的数量")
+    public static boolean addMerchantStock(String shopLocation, String categoryId, String merchantId, int amount) {
+        if (amount <= 0) {
+            return false;
+        }
+
+        ShopInfo shopInfo = getOrInitSavedShopInfo(shopLocation);
+        if (shopInfo == null) {
+            return false;
+        }
+
+        for (var category : shopInfo.getCategoryInfos()) {
+            if (category.getId().equals(categoryId)) {
+                for (var merchant : category.getMerchants()) {
+                    if (merchant.getId().equals(merchantId)) {
+                        int stock = merchant.getStock();
+                        if (stock >= 0) {
+                            merchant.setStock((int) Math.min(Integer.MAX_VALUE, (long) stock + amount));
+                            ViscriptShop.getShopSavedData().addMerchantStock(
+                                    shopLocation, categoryId, merchantId, amount);
+                            setShopInfo(shopLocation, shopInfo);
+                            ShopHelper.clearCache();
+                        }
+                        return true;
+                    }
+                }
+                break;
+            }
+        }
+        return false;
+    }
+
     @Info("删除商店商品")
     public static boolean removeMerchant(String shopLocation, String categoryId, String merchantId) {
         ShopInfo shopInfo = getOrInitSavedShopInfo(shopLocation);
@@ -247,9 +291,9 @@ public class ViScriptShopServerUtil {
     @Info("获取玩家钱")
     public static double getMoney(ServerPlayer player) {
         if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            return MoneyUtil.normalize(SGEconomyApi.getBalance(player));
+            return MoneyUtil.normalizeBalance(SGEconomyApi.getBalance(player));
         }
-        return MoneyUtil.normalize(player.getData(ShopRegistries.MONEY).getMoney());
+        return MoneyUtil.normalizeBalance(player.getData(ShopRegistries.MONEY).getMoney());
     }
 
     @Info("获取玩家阶段标记")
@@ -308,9 +352,10 @@ public class ViScriptShopServerUtil {
 
     @Info("设置玩家钱")
     public static void setMoney(ServerPlayer player, double money) {
-        double normalized = MoneyUtil.normalize(money);
+        double normalized = MoneyUtil.normalizeBalance(money);
         if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            SGEconomyApi.setBalance(player, normalized);
+            SGEconomyApi.setBalance(player, MoneyUtil.normalize(normalized));
+            normalized = MoneyUtil.normalizeBalance(SGEconomyApi.getBalance(player));
         }
         ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
         data.setMoney(normalized);
@@ -324,12 +369,43 @@ public class ViScriptShopServerUtil {
         }
     }
 
-    @Info("扣除玩家钱")
+    /**
+     * 扣除玩家货币，默认最多扣除当前的正余额。
+     *
+     * <p>已有负余额保持不变且返回零；允许透支时使用带策略参数的重载。
+     *
+     * @param player 被扣款的服务端玩家
+     * @param money 待扣除的浮点金额；非正数、非数字或无穷值不扣款
+     * @return 实际扣除的非负金额
+     * @see #removeMoney(ServerPlayer, double, boolean)
+     */
+    @Info("扣除玩家钱，默认不允许透支")
     public static double removeMoney(ServerPlayer player, double money) {
+        return removeMoney(player, money, false);
+    }
+
+    /**
+     * 按指定透支策略扣除玩家货币。
+     *
+     * <p>禁止透支时最多扣除当前的正余额；已有负余额保持不变且返回零。
+     * 允许透支时余额最低饱和到 {@code -Double.MAX_VALUE}。
+     * 启用 Magic Coins 替换时遵循其余额限制，最多扣至零。
+     *
+     * @param player 被扣款的服务端玩家
+     * @param money 待扣除的浮点金额；非正数、非数字或无穷值不扣款
+     * @param allowNegative 是否允许扣款后余额为负数
+     * @return 实际扣除的非负金额
+     */
+    @Info("扣除玩家钱，可指定是否允许余额为负数")
+    public static double removeMoney(ServerPlayer player, double money, boolean allowNegative) {
         double requested = MoneyUtil.normalize(money);
         double playerMoney = getMoney(player);
-        double removed = Math.min(requested, playerMoney);
-        setMoney(player, MoneyUtil.subtract(playerMoney, removed));
-        return removed;
+        double removed = allowNegative ? requested : Math.min(requested, MoneyUtil.normalize(playerMoney));
+        if (removed <= 0) {
+            return 0;
+        }
+        double remaining = MoneyUtil.subtract(playerMoney, removed, true);
+        setMoney(player, remaining);
+        return MoneyUtil.add(playerMoney, -getMoney(player));
     }
 }

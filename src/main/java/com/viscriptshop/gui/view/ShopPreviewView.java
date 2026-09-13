@@ -10,7 +10,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
-import com.viscript_lib.gui.components.DraggableUI;
 import com.viscriptshop.gui.ShopEditor;
 import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
 import com.viscriptshop.gui.components.MerchantGiftPreview;
@@ -24,18 +23,23 @@ import com.viscriptshop.util.UIElementUtil;
 import dev.vfyjxf.taffy.style.*;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.IntStream;
 
 public class ShopPreviewView extends View {
     public final ShopEditor editor;
     public final UIElement head = new UIElement();
-    public final ScrollerView scrollerView = new ScrollerView();
+    private final MerchantScroller merchantScroller = new MerchantScroller();
+    public final ScrollerView scrollerView = merchantScroller;
     private CategoryInfo selectedCategory = null;
 
     // 剪贴板：用于跨分类复制/剪切/粘贴商品
     private static MerchantClipboard clipboard = null;
 
-    private DraggableUI<MerchantInfo> draggableMerchants = null;
     private CategoryInfo lastRenderedCategory = null;
     private CategoryInfo.ShopType lastRenderedShopType = null;
     private int lastRenderedSignature = 0;
@@ -56,7 +60,7 @@ public class ShopPreviewView extends View {
             editor.inspectMerchant(merchantInfo, selectedCategory);
         }).layout(layout -> {
             layout.heightPercent(100);
-        });
+        }).setId("shop_preview_add_merchant");
         UIElement setTradeTypeButton = new Button().setText("viscript_shop.editor.setTradeType").setOnClick(event -> {
             showTradeTypeDialog();
         }).layout(layout -> {
@@ -86,10 +90,12 @@ public class ShopPreviewView extends View {
         });
 
         this.addChildren(head, scrollerView);
+        addEventListener(UIEvents.TICK, event -> tickReloadMerchants());
     }
 
     public void loadView() {
-        this.scrollerView.viewContainer.addEventListener(UIEvents.TICK, event -> tickReloadMerchants());
+        merchantScroller.setItems(List.of());
+        lastRenderedCategory = null;
     }
 
     private void tickReloadMerchants() {
@@ -97,8 +103,7 @@ public class ShopPreviewView extends View {
 
         if (selectedCategory == null || !(editor.getCurrentProject() instanceof Shop)) {
             head.setDisplay(TaffyDisplay.NONE);
-            scrollerView.clearAllScrollViewChildren();
-            draggableMerchants = null;
+            if (lastRenderedCategory != null) merchantScroller.setItems(List.of());
             lastRenderedCategory = null;
             lastRenderedShopType = null;
             lastRenderedSignature = 0;
@@ -110,15 +115,18 @@ public class ShopPreviewView extends View {
         CategoryInfo.ShopType shopType = selectedCategory.getShopType();
         int signature = computeSignature(selectedCategory);
 
-        boolean dragging = draggableMerchants != null && draggableMerchants.isDragging();
+        boolean dragging = merchantScroller.draggedMerchant != null;
         boolean needsRebuild = !dragging && (
                 selectedCategory != lastRenderedCategory ||
                         shopType != lastRenderedShopType ||
-                        signature != lastRenderedSignature
+                        signature != lastRenderedSignature ||
+                        merchantScroller.columns != merchantScroller.columnCount()
         );
 
         if (needsRebuild) {
+            boolean categoryChanged = selectedCategory != lastRenderedCategory;
             rebuildMerchantsUI();
+            if (categoryChanged) merchantScroller.scrollToTop();
             lastRenderedCategory = selectedCategory;
             lastRenderedShopType = shopType;
             lastRenderedSignature = signature;
@@ -126,31 +134,130 @@ public class ShopPreviewView extends View {
     }
 
     private void rebuildMerchantsUI() {
-        scrollerView.clearAllScrollViewChildren();
+        merchantScroller.columns = merchantScroller.columnCount();
+        merchantScroller.virtualScrollerViewStyle(style -> style
+                .itemHeightMode(VirtualItemHeightMode.VARIABLE)
+                .estimatedItemHeight(selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY ? 79 : 27)
+                .overscanPixels(80));
+        int rows = (selectedCategory.getMerchants().size() + merchantScroller.columns - 1) / merchantScroller.columns;
+        merchantScroller.setItems(IntStream.range(0, rows).boxed().toList());
+    }
 
-        List<MerchantInfo> merchants = selectedCategory.getMerchants();
+    private final class MerchantScroller extends VirtualScrollerView<Integer> {
+        private final Map<Integer, UIElement> mountedCards = new LinkedHashMap<>();
+        private int columns = 1;
+        private MerchantInfo draggedMerchant;
+        private float dragX = Float.NaN;
+        private float dragY = Float.NaN;
+        private int lastTargetIndex = -1;
 
-        draggableMerchants = new DraggableUI<>(merchants, newOrder -> {
-            selectedCategory.setMerchants(newOrder);
-            lastRenderedSignature = computeSignature(selectedCategory);
-        });
-
-        draggableMerchants.layout(layout -> {
-            layout.widthPercent(100);
-            layout.flexDirection(FlexDirection.ROW);
-            layout.wrap(FlexWrap.WRAP);
-            layout.paddingAll(5);
-            layout.gapAll(5);
-        });
-
-        for (int index = 0; index < merchants.size(); index++) {
-            MerchantInfo merchantInfo = merchants.get(index);
-            MerchantCard card = createMerchantCard(merchantInfo, "shop_preview_merchant_" + index);
-            card.root.addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchantInfo));
-            draggableMerchants.addSortableCard(merchantInfo, card.root, card.dragHandle);
+        private MerchantScroller() {
+            setId("shop_preview_merchants");
+            setBeforeMountItems(mountedCards::clear);
+            setItemUIProvider(this::createRow);
+            addEventListener(UIEvents.DRAG_SOURCE_UPDATE, event -> {
+                dragX = event.x;
+                dragY = event.y;
+                reorderAt(dragX, dragY);
+            });
+            addEventListener(UIEvents.DRAG_END, event -> {
+                draggedMerchant = null;
+                dragX = dragY = Float.NaN;
+                lastTargetIndex = -1;
+                lastRenderedSignature = computeSignature(selectedCategory);
+                refreshVisibleItems();
+            });
         }
 
-        scrollerView.addScrollViewChild(draggableMerchants);
+        private int columnCount() {
+            float cardWidth = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY ? 55 : 130;
+            return Math.max(1, (int) ((viewPort.getContentWidth() - 5) / (cardWidth + 5)));
+        }
+
+        private UIElement createRow(int rowIndex) {
+            UIElement row = new UIElement().layout(layout -> {
+                layout.widthPercent(100);
+                layout.flexDirection(FlexDirection.ROW);
+                layout.alignItems(AlignItems.STRETCH);
+                layout.paddingHorizontal(5);
+                layout.paddingTop(rowIndex == 0 ? 5 : 0);
+                layout.paddingBottom(5);
+                layout.gapAll(5);
+            });
+            var merchants = selectedCategory.getMerchants();
+            for (int index = rowIndex * columns; index < Math.min(merchants.size(), (rowIndex + 1) * columns); index++) {
+                MerchantInfo merchant = merchants.get(index);
+                String id = "shop_preview_merchant_" + index;
+                MerchantCard card = createMerchantCard(merchant, id);
+                card.root.addClass("shop-preview-merchant").layout(layout -> layout.flexShrink(0));
+                card.root.addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchant));
+                card.dragHandle.setId(id + "_drag").addEventListener(UIEvents.MOUSE_DOWN, event -> {
+                    if (event.button != 0) return;
+                    draggedMerchant = merchant;
+                    lastTargetIndex = -1;
+                    // 拖拽源使用滚动容器，翻页卸载卡片时仍能接收拖拽和松开事件。
+                    startDrag(merchant, card.root.getStyle().backgroundTexture())
+                            .setDragTexture(-card.root.getSizeWidth() / 2, -card.root.getSizeHeight() / 2,
+                                    card.root.getSizeWidth(), card.root.getSizeHeight());
+                    card.root.getStyle().opacity(0.4f);
+                    event.stopPropagation();
+                });
+                if (merchant == draggedMerchant) card.root.getStyle().opacity(0.4f);
+                mountedCards.put(index, card.root);
+                row.addChild(card.root);
+            }
+            return row;
+        }
+
+        @Override
+        public void screenTick() {
+            super.screenTick();
+            if (draggedMerchant == null || Float.isNaN(dragY)) return;
+            float top = viewPort.getContentY();
+            float bottom = top + viewPort.getContentHeight();
+            float overflow = dragY < top ? dragY - top : dragY > bottom ? dragY - bottom : 0;
+            float scrollable = getContainerHeight() - viewPort.getContentHeight();
+            if (overflow == 0 || scrollable <= 0) return;
+            float pixels = Math.signum(overflow) * (2 + 10 * Math.min(1, Math.abs(overflow) / 48));
+            verticalScroller.setValue(verticalScroller.getValue() + pixels / scrollable);
+            reorderAt(Math.max(viewPort.getContentX() + 1,
+                            Math.min(dragX, viewPort.getContentX() + viewPort.getContentWidth() - 1)),
+                    Math.max(top + 1, Math.min(dragY, bottom - 1)));
+        }
+
+        private void reorderAt(float x, float y) {
+            if (draggedMerchant == null) return;
+            int current = findMerchantIndexByIdentity(draggedMerchant);
+            if (current < 0) return;
+            for (var entry : mountedCards.entrySet()) {
+                UIElement card = entry.getValue();
+                if (entry.getKey() == current || !UIElement.isMouseOverRect(card.getPositionX(), card.getPositionY(),
+                        card.getSizeWidth(), card.getSizeHeight(), x, y)) continue;
+                float dx = x - card.getPositionX() - card.getSizeWidth() / 2;
+                float dy = y - card.getPositionY() - card.getSizeHeight() / 2;
+                boolean before = Math.abs(dy) > Math.abs(dx) ? dy < 0 : dx < 0;
+                int target = entry.getKey() + (before ? (current < entry.getKey() ? -1 : 0)
+                        : (current < entry.getKey() ? 0 : 1));
+                moveMerchant(current, target);
+                return;
+            }
+            int last = selectedCategory.getMerchants().size() - 1;
+            UIElement lastCard = mountedCards.get(last);
+            if (lastCard != null && y >= lastCard.getPositionY()
+                    && (y > lastCard.getPositionY() + lastCard.getSizeHeight() / 2
+                    || x > lastCard.getPositionX() + lastCard.getSizeWidth())) {
+                moveMerchant(current, last);
+            }
+        }
+
+        private void moveMerchant(int current, int target) {
+            if (current == target || target == lastTargetIndex) return;
+            lastTargetIndex = target;
+            var order = new ArrayList<>(selectedCategory.getMerchants());
+            order.add(target, order.remove(current));
+            selectedCategory.setMerchants(order);
+            refreshVisibleItems();
+        }
     }
 
     private MerchantCard createMerchantCard(MerchantInfo merchantInfo, String id) {
@@ -482,9 +589,19 @@ public class ShopPreviewView extends View {
 
         for (MerchantInfo m : merchants) {
             sig = 31 * sig + System.identityHashCode(m);
-            sig = 31 * sig + m.hashCode();
+            // getItem()/getRenderItem() 返回新副本，Lombok 的 hashCode 会让未修改的商品每 tick 都被判为变化。
+            sig = 31 * sig + Objects.hash(m.getMoney(), m.getTradeType(),
+                    previewItemSignature(m.getItemAInfo()), previewItemSignature(m.getItemBInfo()),
+                    previewItemSignature(m.getItemResultInfo()), m.isPromotionEnabled(),
+                    m.isInheritParentPromotions(), m.getPromotionRules());
         }
         return sig;
+    }
+
+    private int previewItemSignature(MerchantItemInfo item) {
+        var display = item.getDisplay();
+        return Objects.hash(item.getSerializedItem(), display.getRenderMode(), display.getResourcePath(),
+                display.getResourceName(), display.getSerializedRenderItem());
     }
 
     private record MerchantCard(UIElement root, UIElement dragHandle) {

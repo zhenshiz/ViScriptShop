@@ -20,7 +20,6 @@ import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.event.neoforge.ShopClientEvent;
 import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
-import com.viscriptshop.gui.components.PriceTextLabel;
 import com.viscriptshop.gui.components.MerchantGiftPreview;
 import com.viscriptshop.gui.components.PlayerHeadElement;
 import com.viscriptshop.gui.components.SceneToggleBuilder;
@@ -98,10 +97,6 @@ public class ShopUI extends UIElement {
     private static final float LIST_COUNT_WIDTH = 30;
     private static final float LIST_CONTROL_GAP = 2;
     private static final float LIST_CONTROL_WIDTH = LIST_BUTTON_SIZE * 2 + LIST_COUNT_WIDTH + LIST_CONTROL_GAP * 2;
-    private static final float MONEY_FONT_SIZE = 8;
-    private static final float MONEY_ACTUAL_FONT_SIZE = MerchantItemAmountDisplay.AMOUNT_FONT_SIZE;
-    private static final float MONEY_RATE_FONT_SIZE = MerchantItemAmountDisplay.AMOUNT_FONT_SIZE;
-    private static final float MONEY_PRICE_HEIGHT = MerchantItemAmountDisplay.PRICE_HEIGHT;
     private static final float LOCKED_CATEGORY_OPACITY = 0.7f;
 
     // 数据
@@ -734,7 +729,7 @@ public class ShopUI extends UIElement {
             }).layout(layout -> {
                 layout.heightPercent(100);
             }).addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-                event.hoverTooltips = new HoverTooltips(List.of(Component.nullToEmpty(MoneyUtil.format(netMoneyGain))), null, null, null);
+                event.hoverTooltips = new HoverTooltips(List.of(Component.nullToEmpty(MoneyUtil.formatGrouped(netMoneyGain))), null, null, null);
             });
             money.setId("shop_cart_money");
             shoppingCarView.addScrollViewChild(createItemInfoBox().addChildren(moneyIcon, money));
@@ -784,7 +779,7 @@ public class ShopUI extends UIElement {
             }).layout(layout -> {
                 layout.heightPercent(100);
             }).addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-                event.hoverTooltips = new HoverTooltips(List.of(Component.nullToEmpty(color + MoneyUtil.format(netMoneyCost))), null, null, null);
+                event.hoverTooltips = new HoverTooltips(List.of(Component.nullToEmpty(color + MoneyUtil.formatGrouped(netMoneyCost))), null, null, null);
             });
             money.setId("shop_cost_money");
             inventoryView.addScrollViewChild(createItemInfoBox().addChildren(moneyIcon, money));
@@ -833,9 +828,12 @@ public class ShopUI extends UIElement {
     }
 
     public UIElement createMerchant(MerchantInfo merchantInfo, int index) {
+        boolean currency = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY;
         UIElement merchant = new UIElement().setId("shop_merchant_list_" + index).layout(layout -> {
             layout.widthPercent(100);
-            layout.height(Math.max(theme.merchantRowHeight(), MONEY_PRICE_HEIGHT));
+            layout.height(currency
+                    ? theme.merchantRowHeight()
+                    : Math.max(theme.merchantRowHeight(), MerchantItemAmountDisplay.PRICE_HEIGHT));
             layout.gapAll(6);
             layout.flexDirection(FlexDirection.ROW);
             layout.paddingHorizontal(4);
@@ -865,10 +863,9 @@ public class ShopUI extends UIElement {
             layout.height(MERCHANT_ARROW_SIZE);
             layout.flexShrink(0);
         });
-        boolean currency = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY;
         MerchantItemAmountDisplay resultItemSlot = createMerchantResultElement(merchantInfo, "itemResult" + index);
         if (currency) {
-            resultItemSlot.alignPriceDetailsInRow();
+            resultItemSlot.reservePriceSpace();
         }
         var gift = MerchantGiftPreview.create(currentShopInfo, selectedCategory, merchantInfo,
                 "shop_merchant_list_" + index);
@@ -914,17 +911,17 @@ public class ShopUI extends UIElement {
                         PromotionRule.Target.ITEM_B,
                         merchantInfo.getItemB().getCount()
                 );
-                // 折扣与现价横向贴近图标，纵向分别靠行的上下沿，成本列固定保留。
+                // 与货币共用紧邻图标右侧的价格布局，成本列固定保留。
                 UIElement itemASlot = createMerchantItemPriceElement(
                         merchantInfo.getItemAInfo(),
                         itemAPrice,
                         "itemA" + index
-                ).alignPriceDetailsVertically();
+                );
                 UIElement itemBSlot = createMerchantItemPriceElement(
                         merchantInfo.getItemBInfo(),
                         itemBPrice,
                         "itemB" + index
-                ).alignPriceDetailsVertically();
+                );
                 // 相对位移只收近两个物品，不推动第二个物品和箭头。
                 itemASlot.getLayout().left(2);
                 uiElement.getLayout().widthPercent(34);
@@ -957,8 +954,7 @@ public class ShopUI extends UIElement {
                         + CURRENCY_TRADE_GAP * 2);
                 uiElement.getLayout().gapAll(CURRENCY_TRADE_GAP);
                 uiElement.getLayout().flexShrink(0);
-                UIElement moneyUI = createMoneyPriceElement(moneyPrice, "shop_merchant_price_" + index, false);
-                moneyUI.getLayout().height(MONEY_PRICE_HEIGHT);
+                UIElement moneyUI = createMoneyPriceElement(moneyPrice, "shop_merchant_price_" + index);
                 UIElement firstColumn = createMerchantListColumn(
                         "shop_merchant_list_first_" + index, CURRENCY_COLUMN_WIDTH,
                         merchantInfo.getTradeType() == MerchantInfo.TradeType.BUY ? moneyUI : resultItemSlot);
@@ -1147,10 +1143,8 @@ public class ShopUI extends UIElement {
                 moneyTarget,
                 merchantInfo.getMoney()
         );
-        UIElement price = createFinalMoneyPriceElement(moneyPrice, "shop_merchant_grid_price_" + index)
+        UIElement price = createMoneyPriceElement(moneyPrice, "shop_merchant_grid_price_" + index, true)
                 .layout(layout -> {
-                    layout.widthPercent(100);
-                    layout.height(12);
                     layout.flexShrink(0);
                     layout.marginTop(1);
                     layout.marginBottom(2);
@@ -1229,87 +1223,34 @@ public class ShopUI extends UIElement {
         return merchant;
     }
 
-    private UIElement createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
-                                              String id,
-                                              boolean goldWhenUnchanged) {
-        Label normalPrice = (Label) new PriceTextLabel()
-                .setText(createNormalMoneyPrice(adjustment.get(), goldWhenUnchanged))
-                .textStyle(style -> style
-                        .textAlignHorizontal(Horizontal.CENTER)
-                        .textAlignVertical(Vertical.CENTER)
-                        .fontSize(MONEY_FONT_SIZE))
-                .layout(layout -> {
-                    layout.widthPercent(100);
-                    layout.heightPercent(100);
-                });
-        normalPrice.setId(id + "_count");
-        normalPrice.setAllowHitTest(false);
-        normalPrice.bindDataSource(SupplierDataSource.of(() ->
-                createNormalMoneyPrice(adjustment.get(), goldWhenUnchanged)
-        ));
-
-        Label originalPrice = createMoneyPriceLabel(
-                id + "_original",
-                () -> createOriginalMoneyPrice(adjustment.get()),
-                MONEY_FONT_SIZE
-        );
-        originalPrice.getTextStyle()
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .adaptiveWidth(false);
-        originalPrice.getLayout().widthPercent(100);
-        originalPrice.getLayout().heightPercent(100);
-        originalPrice.getLayout().positionType(TaffyPosition.ABSOLUTE);
-        originalPrice.getLayout().left(0);
-        originalPrice.getLayout().top(0);
-
-        Label actualPrice = createMoneyPriceLabel(
-                id + "_actual",
-                () -> createActualMoneyPrice(adjustment.get()),
-                MONEY_ACTUAL_FONT_SIZE
-        );
-        actualPrice.getTextStyle()
-                .textAlignHorizontal(Horizontal.RIGHT)
-                .textAlignVertical(Vertical.BOTTOM)
-                .adaptiveWidth(false);
-        actualPrice.getLayout().positionType(TaffyPosition.ABSOLUTE);
-        actualPrice.getLayout().left(MerchantItemAmountDisplay.PRICE_DETAIL_INSET);
-        actualPrice.getLayout().right(MerchantItemAmountDisplay.PRICE_DETAIL_INSET);
-        actualPrice.getLayout().bottom(MerchantItemAmountDisplay.PRICE_ACTUAL_BOTTOM);
-
-        Label rate = createMoneyPriceLabel(id + "_rate", () -> createPriceRate(adjustment.get()), MONEY_RATE_FONT_SIZE);
-        rate.getTextStyle()
-                .textAlignHorizontal(Horizontal.RIGHT)
-                .textAlignVertical(Vertical.TOP);
-        rate.getLayout().positionType(TaffyPosition.ABSOLUTE);
-        rate.getLayout().left(MerchantItemAmountDisplay.PRICE_DETAIL_INSET);
-        rate.getLayout().right(MerchantItemAmountDisplay.PRICE_DETAIL_INSET);
-        rate.getLayout().top(MerchantItemAmountDisplay.PRICE_RATE_TOP);
-
-        bindMoneyPriceTooltip(normalPrice, adjustment);
-        bindMoneyPriceTooltip(originalPrice, adjustment);
-        bindMoneyPriceTooltip(actualPrice, adjustment);
-        return new UIElement()
-                .setId(id)
-                .layout(layout -> {
-                    layout.widthPercent(100);
-                    layout.heightPercent(100);
-                    layout.positionType(TaffyPosition.RELATIVE);
-                })
-                .addChildren(normalPrice, originalPrice, actualPrice, rate);
+    private MerchantItemAmountDisplay createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
+                                                               String id) {
+        return createMoneyPriceElement(adjustment, id, false);
     }
 
-    private UIElement createFinalMoneyPriceElement(Supplier<PriceAdjustment> adjustment, String id) {
-        Label actual = createMoneyPriceLabel(id + "_actual",
-                () -> Component.literal("◎" + MoneyUtil.formatCompact(adjustment.get().finalAmount()))
-                        .withStyle(ChatFormatting.GOLD), MONEY_FONT_SIZE);
-        actual.textStyle(style -> style.textAlignHorizontal(Horizontal.CENTER).textAlignVertical(Vertical.CENTER));
-        actual.layout(layout -> {
-            layout.widthPercent(100);
-            layout.heightPercent(100);
-        });
-        bindMoneyPriceTooltip(actual, adjustment);
-        return new UIElement().setId(id).addChild(actual);
+    private MerchantItemAmountDisplay createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
+                                                               String id, boolean finalOnly) {
+        MerchantItemAmountDisplay element;
+        if (finalOnly) {
+            element = MerchantItemAmountDisplay.count(COIN, id, () -> {
+                PriceAdjustment current = adjustment.get();
+                return Component.literal(MoneyUtil.formatCompact(current.finalAmount()))
+                        .withStyle(current.hasChange() ? ChatFormatting.GOLD : ChatFormatting.WHITE);
+            });
+        } else {
+            element = MerchantItemAmountDisplay.price(
+                    COIN,
+                    id,
+                    () -> createNormalMoneyPrice(adjustment.get()),
+                    () -> createOriginalMoneyPrice(adjustment.get()),
+                    () -> createActualMoneyPrice(adjustment.get()),
+                    () -> createPriceRate(adjustment.get())
+            );
+        }
+        element.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
+                event.hoverTooltips = createPriceTooltips(adjustment.get()));
+        markAdjustedPrice(element, adjustment);
+        return element;
     }
 
     private MerchantItemAmountDisplay createMerchantItemCountElement(MerchantItemInfo itemInfo, String id) {
@@ -1384,33 +1325,18 @@ public class ShopUI extends UIElement {
                 .withStyle(ChatFormatting.GOLD);
     }
 
-    private Label createMoneyPriceLabel(String id, Supplier<Component> text, float fontSize) {
-        Label label = (Label) new PriceTextLabel()
-                .setText(text.get())
-                .textStyle(style -> style
-                        .textAlignVertical(Vertical.BOTTOM)
-                        .fontSize(fontSize)
-                        .adaptiveWidth(false))
-                .layout(layout -> layout.height(fontSize + 1));
-        label.setId(id);
-        label.setAllowHitTest(false);
-        label.bindDataSource(SupplierDataSource.of(text));
-        return label;
-    }
-
-    private Component createNormalMoneyPrice(PriceAdjustment adjustment, boolean goldWhenUnchanged) {
+    private Component createNormalMoneyPrice(PriceAdjustment adjustment) {
         if (adjustment.hasChange()) {
             return Component.empty();
         }
-        var price = Component.literal("◎" + MoneyUtil.formatCompact(adjustment.finalAmount()));
-        return goldWhenUnchanged ? price.withStyle(ChatFormatting.GOLD) : price;
+        return Component.literal(MoneyUtil.formatCompact(adjustment.finalAmount()));
     }
 
     private Component createOriginalMoneyPrice(PriceAdjustment adjustment) {
         if (!adjustment.hasChange()) {
             return Component.empty();
         }
-        return Component.literal("◎" + MoneyUtil.formatCompact(adjustment.baseAmount()))
+        return Component.literal(MoneyUtil.formatCompact(adjustment.baseAmount()))
                 .withStyle(ChatFormatting.GRAY, ChatFormatting.STRIKETHROUGH);
     }
 
@@ -1418,7 +1344,7 @@ public class ShopUI extends UIElement {
         if (!adjustment.hasChange()) {
             return Component.empty();
         }
-        return Component.literal("◎" + MoneyUtil.formatCompact(adjustment.finalAmount()))
+        return Component.literal(MoneyUtil.formatCompact(adjustment.finalAmount()))
                 .withStyle(ChatFormatting.GOLD);
     }
 
@@ -1458,42 +1384,60 @@ public class ShopUI extends UIElement {
         });
     }
 
-    private void bindMoneyPriceTooltip(Label label, Supplier<PriceAdjustment> adjustment) {
-        label.setAllowHitTest(true);
-        label.addEventListener(UIEvents.HOVER_TOOLTIPS, event ->
-                event.hoverTooltips = label.getText().getString().isEmpty() ? null : createPriceTooltips(adjustment.get()));
-    }
-
     private HoverTooltips createPriceTooltips(PriceAdjustment adjustment) {
         List<Component> lines = new ArrayList<>();
         if (adjustment.hasChange()) {
             lines.add(Component.translatable(
                     "viscript_shop.ui.promotion.price_compare",
-                    MoneyUtil.format(adjustment.baseAmount()),
-                    MoneyUtil.format(adjustment.finalAmount())
+                    Component.literal(MoneyUtil.formatGrouped(adjustment.baseAmount())),
+                    Component.literal(MoneyUtil.formatGrouped(adjustment.finalAmount()))
             ));
             lines.add(Component.translatable(
-                    "viscript_shop.ui.promotion.total_rate",
-                    formatPercentage(adjustment.totalRate()),
-                    adjustment.totalRate() <= 0
-                            ? Component.translatable("viscript_shop.ui.promotion.change.decrease")
-                            : Component.translatable("viscript_shop.ui.promotion.change.increase")
+                    adjustment.totalRate() > 0
+                            ? "viscript_shop.ui.promotion.total_increase"
+                            : "viscript_shop.ui.promotion.total_decrease",
+                    signedRateText(adjustment.totalRate())
             ));
             for (var detail : adjustment.details()) {
-                Component source = detail.source().startsWith("viscript_shop.")
-                        ? Component.translatable(detail.source())
-                        : Component.literal(detail.source());
+                Component origin = detail.displayText().isBlank()
+                        ? Component.translatable(detail.scope().getTranslationKey())
+                        : resolveRuleText(detail.displayText());
                 lines.add(Component.translatable(
                         "viscript_shop.ui.promotion.detail",
-                        source,
-                        Component.translatable(detail.scope().getTranslationKey()),
-                        formatSignedPercentage(detail.signedRate())
+                        resolveRuleText(detail.source()),
+                        origin,
+                        signedRateText(detail.signedRate())
                 ));
             }
         } else {
-            lines.add(Component.literal(MoneyUtil.format(adjustment.finalAmount())));
+            lines.add(Component.literal(MoneyUtil.formatGrouped(adjustment.finalAmount())));
         }
         return new HoverTooltips(lines, null, null, null);
+    }
+
+    /**
+     * 创建带符号的百分比文本，并按变化方向着色：上涨红色、下跌绿色、持平白色。
+     *
+     * @param rate 带符号变化率
+     * @return 形如 {@code +11.11%} 的着色文本
+     */
+    private Component signedRateText(double rate) {
+        ChatFormatting color = rate > 0
+                ? ChatFormatting.RED
+                : rate < 0 ? ChatFormatting.GREEN : ChatFormatting.WHITE;
+        return Component.literal(formatSignedPercentage(rate) + "%").withStyle(color);
+    }
+
+    /**
+     * 将规则名称或规则自定义文本解析为显示组件。
+     *
+     * <p>文本支持翻译键；没有对应翻译条目时按原文显示。
+     *
+     * @param text 规则 ID、自定义文本或默认来源翻译键
+     * @return 可直接显示的组件
+     */
+    private Component resolveRuleText(String text) {
+        return text == null || text.isBlank() ? Component.empty() : Component.translatable(text);
     }
 
     private void applyMerchantCountFieldBackground(NumberConfigurator countConfigurator) {

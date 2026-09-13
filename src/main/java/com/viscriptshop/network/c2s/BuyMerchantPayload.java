@@ -120,7 +120,7 @@ public class BuyMerchantPayload {
         }
 
         // 先规划整车优惠券，报价和任何失败分支都不会扣除物品。
-        ConditionItemPayment conditionPayment = ConditionItemPayment.plan(player.getInventory(), quote.conditionCosts());
+        ConditionItemPayment conditionPayment = ConditionItemPayment.plan(player, quote.conditionCosts());
         if (!conditionPayment.isAffordable()) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.promotion.items_unavailable"));
@@ -146,13 +146,13 @@ public class BuyMerchantPayload {
             // 钱不够
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.noEnoughMoney",
-                            MoneyUtil.format(MoneyUtil.subtract(netMoneyCost, playerMoney))));
+                            MoneyUtil.format(MoneyUtil.add(netMoneyCost, -playerMoney))));
             NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
-        // 所有可失败的交易检查通过后，才从之前核对过的实际栏位扣券。
-        if (!conditionPayment.consume()) {
+        // 所有可失败的交易检查通过后，才按规划的条目从玩家全部容器中扣券。
+        if (!conditionPayment.consume(player)) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.promotion.items_unavailable"));
             NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
@@ -191,7 +191,7 @@ public class BuyMerchantPayload {
         }
 
         // 同一购物车的货币收入与支出按净额一次性结算，物品仍分别验证和处理。
-        double settledMoney = MoneyUtil.add(MoneyUtil.subtract(playerMoney, netMoneyCost), netMoneyGain);
+        double settledMoney = MoneyUtil.add(MoneyUtil.subtract(playerMoney, netMoneyCost, true), netMoneyGain);
         if (Double.compare(settledMoney, playerMoney) != 0) {
             ViScriptShopServerUtil.setMoney(player, settledMoney);
         }
