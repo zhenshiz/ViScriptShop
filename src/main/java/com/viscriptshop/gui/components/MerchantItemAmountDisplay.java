@@ -30,6 +30,7 @@ import java.util.function.Supplier;
  */
 public final class MerchantItemAmountDisplay extends UIElement {
     public static final float AMOUNT_FONT_SIZE = 4;
+    public static final float COUNT_FONT_SIZE = 5;
     public static final float COUNT_WIDTH = 20;
     public static final float PRICE_WIDTH = 40;
     public static final float PRICE_HEIGHT = 28;
@@ -115,7 +116,7 @@ public final class MerchantItemAmountDisplay extends UIElement {
                 });
         item.addChild(displayElement);
 
-        Label normal = createBoundLabel(id + "_count", normalText);
+        Label normal = createBoundLabel(id + "_count", normalText, COUNT_FONT_SIZE);
         normal.getTextStyle()
                 .textAlignHorizontal(Horizontal.RIGHT)
                 .textAlignVertical(Vertical.BOTTOM);
@@ -130,7 +131,7 @@ public final class MerchantItemAmountDisplay extends UIElement {
             return;
         }
 
-        Label original = createBoundLabel(id + "_original", originalText);
+        Label original = createBoundLabel(id + "_original", originalText, COUNT_FONT_SIZE);
         original.getTextStyle()
                 .textAlignHorizontal(Horizontal.RIGHT)
                 .textAlignVertical(Vertical.BOTTOM);
@@ -148,7 +149,7 @@ public final class MerchantItemAmountDisplay extends UIElement {
                     layout.flexShrink(0);
                     layout.positionType(TaffyPosition.RELATIVE);
                 });
-        Label actual = createBoundLabel(id + "_actual", actualText);
+        Label actual = createBoundLabel(id + "_actual", actualText, AMOUNT_FONT_SIZE);
         actual.getTextStyle()
                 .textAlignHorizontal(Horizontal.LEFT)
                 .textAlignVertical(Vertical.BOTTOM);
@@ -157,7 +158,7 @@ public final class MerchantItemAmountDisplay extends UIElement {
         actual.getLayout().left(0);
         actual.getLayout().bottom(PRICE_ACTUAL_BOTTOM);
 
-        Label rate = createBoundLabel(id + "_rate", rateText);
+        Label rate = createBoundLabel(id + "_rate", rateText, AMOUNT_FONT_SIZE);
         rate.getTextStyle()
                 .textAlignHorizontal(Horizontal.LEFT)
                 .textAlignVertical(Vertical.TOP);
@@ -381,14 +382,14 @@ public final class MerchantItemAmountDisplay extends UIElement {
         return this;
     }
 
-    private static Label createBoundLabel(String id, Supplier<Component> text) {
+    private static Label createBoundLabel(String id, Supplier<Component> text, float fontSize) {
         Label label = (Label) new Label()
                 .setText(text.get())
                 .textStyle(style -> style
                         .textAlignVertical(Vertical.BOTTOM)
-                        .fontSize(AMOUNT_FONT_SIZE)
+                        .fontSize(fontSize)
                         .adaptiveWidth(false))
-                .layout(layout -> layout.height(AMOUNT_FONT_SIZE + 1));
+                .layout(layout -> layout.height(fontSize + 1));
         label.setId(id);
         label.setAllowHitTest(false);
         label.bindDataSource(SupplierDataSource.of(text));

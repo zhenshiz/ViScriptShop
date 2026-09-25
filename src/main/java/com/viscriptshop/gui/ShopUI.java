@@ -10,6 +10,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
@@ -235,15 +236,20 @@ public class ShopUI extends UIElement {
 
         Label categoryTitle = (Label) new Label().setText("viscript_shop.data.shop.categoryInfos");
         Label shopTitle = (Label) new Label().setText(title);
-        UIElement balanceIcon = new UIElement().style(style -> style.backgroundTexture(GuiTextureGroup.of(
+        UIElement balanceIcon = new UIElement().setId("shop_balance_icon").style(style -> style.backgroundTexture(GuiTextureGroup.of(
                 theme.balanceIconBackground(),
                 COIN.copy().scale(theme.balanceIconScale())
         )));
-        Label balanceValue = (Label) new Label()
+        Label balanceValue = (Label) new Label().setId("shop_balance_value")
                 .addEventListener(UIEvents.TICK, event ->
                         ((Label) event.currentElement).setText(MoneyUtil.formatCompact(
                                 ViScriptShopClientUtil.getMoney(minecraft.player)
                         )));
+        UIEventListener balanceTooltip = event ->
+                event.hoverTooltips = new HoverTooltips(List.of(Component.literal(MoneyUtil.formatGrouped(
+                        ViScriptShopClientUtil.getMoney(minecraft.player)))), null, null, null);
+        balanceIcon.addEventListener(UIEvents.HOVER_TOOLTIPS, balanceTooltip);
+        balanceValue.addEventListener(UIEvents.HOVER_TOOLTIPS, balanceTooltip);
 
         UIElement searchIcon = new UIElement().setId("shop_search_icon").style(style ->
                 style.backgroundTexture(GuiTextureGroup.of(
@@ -831,9 +837,7 @@ public class ShopUI extends UIElement {
         boolean currency = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY;
         UIElement merchant = new UIElement().setId("shop_merchant_list_" + index).layout(layout -> {
             layout.widthPercent(100);
-            layout.height(currency
-                    ? theme.merchantRowHeight()
-                    : Math.max(theme.merchantRowHeight(), MerchantItemAmountDisplay.PRICE_HEIGHT));
+            layout.height(theme.merchantRowHeight());
             layout.gapAll(6);
             layout.flexDirection(FlexDirection.ROW);
             layout.paddingHorizontal(4);
