@@ -1,11 +1,4 @@
-plugins {
-    id 'java-library'
-    id 'maven-publish'
-    id 'idea'
-    id 'net.neoforged.moddev' version '2.0.116'
-    id 'io.freefair.lombok' version '8.6'
-}
-
+// 插件由根项目 build.gradle 的 subprojects 块统一应用
 version = mod_version
 group = mod_group_id
 
@@ -80,18 +73,12 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-configurations.configureEach {
+configurations.matching { it.name != 'mixinAgent' }.configureEach {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
+// version 与 parchment 由根项目 build.gradle 的 subprojects 块统一配置
 neoForge {
-    version = project.neo_version
-
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
-
     runs {
         client {
             client()
@@ -140,16 +127,14 @@ neoForge {
     }
 }
 
-apply from: rootProject.file('gradle/ldlib2-uitest.gradle')
+apply from: project.file('gradle/ldlib2-uitest.gradle')
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    //前置模组
-    // LDLib2
-    implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
-    implementation("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
-    jarJar("com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}")
+
+    implementation project(":ViScriptLib")
+    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${vsl_jij_version}"
 
     //测试用模组
     //iris
