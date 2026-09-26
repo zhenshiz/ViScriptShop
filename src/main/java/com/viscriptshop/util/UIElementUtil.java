@@ -8,12 +8,12 @@ import com.lowdragmc.lowdraglib2.gui.texture.ItemStackTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Menu;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
@@ -23,15 +23,14 @@ import com.lowdragmc.lowdraglib2.utils.search.IResultHandler;
 import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.data.CategoryInfo;
-import com.viscriptshop.gui.data.MerchantItemInfo;
 import com.viscriptshop.gui.data.MerchantItemDisplay;
+import com.viscriptshop.gui.data.MerchantItemInfo;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.NotNull;
@@ -106,14 +105,10 @@ public class UIElementUtil {
                         if (!value.isEmpty()) {
                             Minecraft mc = Minecraft.getInstance();
                             TooltipFlag flag = mc.options.advancedItemTooltips
-                                    ? net.minecraft.world.item.TooltipFlag.ADVANCED
-                                    : net.minecraft.world.item.TooltipFlag.NORMAL;
+                                    ? TooltipFlag.ADVANCED
+                                    : TooltipFlag.NORMAL;
 
-                            List<Component> tooltips = value.getTooltipLines(
-                                    Item.TooltipContext.of(mc.level),
-                                    mc.player,
-                                    flag
-                            );
+                            List<Component> tooltips = value.getTooltipLines(mc.player, flag);
 
                             event.hoverTooltips = new HoverTooltips(tooltips, null, null, value);
                         }
@@ -239,7 +234,7 @@ public class UIElementUtil {
             return null;
         }
         try {
-            return ResourceLocation.parse(path.trim());
+            return new ResourceLocation(path.trim());
         } catch (IllegalArgumentException ignored) {
             return null;
         }
@@ -298,7 +293,7 @@ public class UIElementUtil {
             case ITEM -> icon = createItemSlot(categoryInfo.getIconItem(), false, false);
             case TEXTURE -> {
                 String iconTexture = categoryInfo.getIconTexture();
-                if (!iconTexture.isEmpty() && ViscriptShop.isPresentResource(ResourceLocation.parse(iconTexture))) {
+                if (!iconTexture.isEmpty() && ViscriptShop.isPresentResource(new ResourceLocation(iconTexture))) {
                     icon.style(style -> style.backgroundTexture(SpriteTexture.of(iconTexture)));
                 }
             }

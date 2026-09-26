@@ -13,12 +13,11 @@ import com.mojang.serialization.Codec;
 import com.viscriptshop.gui.components.ConfiguratorFieldHelper;
 import com.viscriptshop.gui.components.OptionalSectionConfigurator;
 import com.viscriptshop.promotion.PromotionRule;
-import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.StringRepresentable;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -29,7 +28,7 @@ import java.util.function.Supplier;
 //商店信息
 @Data
 public class ShopInfo implements IConfigurable, IPersistedSerializable {
-    public static final StreamCodec<ByteBuf, ShopInfo> STREAM_CODEC;
+    public static final StreamCodec<ShopInfo> STREAM_CODEC;
     public static final Codec<ShopInfo> CODEC;
 
     @Configurable(name = "viscript_shop.data.shop.name", tips = "viscript_shop.data.shop.name.tip")

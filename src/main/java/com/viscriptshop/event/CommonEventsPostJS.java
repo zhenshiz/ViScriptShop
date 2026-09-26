@@ -5,8 +5,8 @@ import com.viscriptshop.event.kubejs.ShopServerEventJS;
 import com.viscriptshop.event.neoforge.ShopClientEvent;
 import com.viscriptshop.event.neoforge.ShopServerEvent;
 import dev.latvian.mods.kubejs.event.EventResult;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class CommonEventsPostJS {
     @SubscribeEvent(priority = EventPriority.LOW)

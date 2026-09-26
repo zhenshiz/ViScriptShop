@@ -3,7 +3,6 @@ package com.viscriptshop.util;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
-import com.viscriptshop.Config;
 import com.viscriptshop.ShopRegistries;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.ShopUI;
@@ -13,7 +12,6 @@ import dev.latvian.mods.kubejs.typings.Info;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import net.sirgrantd.sg_economy.api.SGEconomyApi;
 
 import java.util.List;
 
@@ -39,9 +37,6 @@ public class ViScriptShopClientUtil {
 
     @Info("获取玩家钱")
     public static double getMoney(LocalPlayer player) {
-        if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
-            return MoneyUtil.normalizeBalance(SGEconomyApi.getBalance(player));
-        }
         return MoneyUtil.normalizeBalance(player.getData(ShopRegistries.MONEY).getMoney());
     }
 

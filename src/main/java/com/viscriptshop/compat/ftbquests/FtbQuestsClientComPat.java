@@ -1,8 +1,8 @@
 package com.viscriptshop.compat.ftbquests;
 
 import dev.ftb.mods.ftbquests.client.GuiProviders;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 为自定义 FTB Quests 类型安装客户端创建界面。

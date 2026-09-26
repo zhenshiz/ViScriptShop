@@ -6,33 +6,38 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ItemOutputTargets;
 import com.viscriptshop.util.MoneyUtil;
-import io.netty.buffer.ByteBuf;
 import lombok.Data;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
-import net.neoforged.neoforge.attachment.AttachmentType;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityManager;
+import net.minecraftforge.common.capabilities.CapabilityToken;
+import net.minecraftforge.registries.DeferredRegister;
+import net.nikdo53.neobackports.io.StreamCodec;
+import net.nikdo53.neobackports.io.attachment.AdvancedCapabilityType;
+import net.nikdo53.neobackports.io.attachment.AttachmentType;
+import net.nikdo53.neobackports.io.attachment.DataAttachment;
+import net.nikdo53.neobackports.registry.NeoForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
 public class ShopRegistries {
-    public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES = DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, ViscriptShop.MOD_ID);
+    public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES = DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, ViscriptShop.MOD_ID);
+    public static final Capability<MoneyAttachment> MONEY_CAP = CapabilityManager.get(new CapabilityToken<>() {});
 
-    public static final Supplier<AttachmentType<Money>> MONEY = ATTACHMENT_TYPES.register("money", () -> AttachmentType.builder(Money::new)
-            .serialize(Money.CODEC)
-            .sync(Money.STREAM_CODEC)
-            .copyOnDeath()
-            .build()
+    public static final Supplier<AttachmentType<Money>> MONEY = ATTACHMENT_TYPES.register("money",
+            () -> AttachmentType.builder(MONEY_CAP, Money::new)
+                    .canAttachTo(AdvancedCapabilityType.PLAYER)
+                    .serialize(Money.CODEC).sync(Money.STREAM_CODEC)
+                    .copyOnDeath().build()
     );
 
+    public static class MoneyAttachment extends DataAttachment<Money> {}
 
     @Data
     public static class Money implements IPersistedSerializable {
         public static final Codec<Money> CODEC = PersistedParser.createCodec(Money::new);
-        public static final StreamCodec<ByteBuf, Money> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
+        public static final StreamCodec<Money> STREAM_CODEC = PersistedParser.createStreamCodec(Money::new);
         @Persisted
         private double money;
         @Persisted

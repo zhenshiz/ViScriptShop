@@ -34,7 +34,7 @@ public class EffectCondition implements PromotionCondition {
         ResourceLocation id = ResourceLocation.tryParse(effectId == null ? "" : effectId.trim());
         var selectedEffect = id == null
                 ? null
-                : BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
+                : BuiltInRegistries.MOB_EFFECT.get(id);
         MobEffectSearchBox searchBox = new MobEffectSearchBox(selectedEffect);
         searchBox.setId("promotion_effect_search");
         searchBox.textField.setId("promotion_effect_search_input");
@@ -75,7 +75,7 @@ public class EffectCondition implements PromotionCondition {
         if (id == null) {
             return false;
         }
-        var effect = BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
+        var effect = BuiltInRegistries.MOB_EFFECT.get(id);
         if (effect == null) {
             return false;
         }

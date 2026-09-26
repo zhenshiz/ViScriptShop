@@ -1,5 +1,6 @@
 package com.viscriptshop.gui.data;
 
+import com.lowdragmc.lowdraglib2.Platform;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -16,13 +17,6 @@ public class ShopSavedData extends SavedData {
 
     public final Map<String, ShopInfo> shopInfoMap = new HashMap<>();
     public final Map<String, Map<String, Map<String, Integer>>> merchantStocks = new HashMap<>();
-
-    public static SavedData.Factory<ShopSavedData> factory() {
-        return new SavedData.Factory<>(
-                ShopSavedData::new,
-                ShopSavedData::fromNbt
-        );
-    }
 
     public void addShopMerchant(String shop, int categoryIndex, MerchantInfo merchantInfo) {
         ShopInfo shopInfo = shopInfoMap.get(shop);
@@ -144,9 +138,9 @@ public class ShopSavedData extends SavedData {
     }
 
     @Override
-    public @NotNull CompoundTag save(@NotNull CompoundTag compoundTag, HolderLookup.@NotNull Provider provider) {
+    public @NotNull CompoundTag save(@NotNull CompoundTag compoundTag) {
         for (Map.Entry<String, ShopInfo> entry : shopInfoMap.entrySet()) {
-            compoundTag.put(entry.getKey(), Shop.serializeRuntimeNBT(provider, entry.getValue()));
+            compoundTag.put(entry.getKey(), Shop.serializeRuntimeNBT(Platform.getFrozenRegistry(), entry.getValue()));
         }
         if (!merchantStocks.isEmpty()) {
             CompoundTag merchantStocksTag = new CompoundTag();

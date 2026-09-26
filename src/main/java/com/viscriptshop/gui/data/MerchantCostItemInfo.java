@@ -5,14 +5,9 @@ import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ViScriptItemStack;
-import io.netty.buffer.ByteBuf;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-import net.minecraft.network.codec.StreamCodec;
+import lombok.*;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 /**
  * 保存玩家为一笔交易提供的实际物品、组件匹配规则和独立图标配置。
@@ -26,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 public class MerchantCostItemInfo extends MerchantItemInfo {
-    public static final StreamCodec<ByteBuf, MerchantCostItemInfo> STREAM_CODEC;
+    public static final StreamCodec<MerchantCostItemInfo> STREAM_CODEC;
     public static final Codec<MerchantCostItemInfo> CODEC;
 
     @Configurable(name = "viscript_shop.data.merchant.item.matchRule", subConfigurable = true)

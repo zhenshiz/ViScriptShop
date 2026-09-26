@@ -18,7 +18,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.sirgrantd.sg_economy.api.SGEconomyApi;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -290,9 +289,9 @@ public class ViScriptShopServerUtil {
 
     @Info("获取玩家钱")
     public static double getMoney(ServerPlayer player) {
-        if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
+/*        if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
             return MoneyUtil.normalizeBalance(SGEconomyApi.getBalance(player));
-        }
+        }*/
         return MoneyUtil.normalizeBalance(player.getData(ShopRegistries.MONEY).getMoney());
     }
 
@@ -353,10 +352,10 @@ public class ViScriptShopServerUtil {
     @Info("设置玩家钱")
     public static void setMoney(ServerPlayer player, double money) {
         double normalized = MoneyUtil.normalizeBalance(money);
-        if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
+/*        if (ViscriptShop.isMagicCoinsLoaded() && Config.isReplaceMoneyToMagicCoin.get()) {
             SGEconomyApi.setBalance(player, MoneyUtil.normalize(normalized));
             normalized = MoneyUtil.normalizeBalance(SGEconomyApi.getBalance(player));
-        }
+        }*/
         ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
         data.setMoney(normalized);
         player.setData(ShopRegistries.MONEY, data);

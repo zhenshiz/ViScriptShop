@@ -11,6 +11,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.viscript_lib.gui.components.DraggableUI;
+import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptshop.gui.ShopEditor;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.Shop;
@@ -70,7 +71,7 @@ public class CategoryView extends View {
             // 分类卡片只依赖名称和图标，不对分类中的全部商品求哈希。
             ItemStack icon = category.getIconItem();
             signature = 31 * signature + Objects.hash(System.identityHashCode(category), category.getName(),
-                    category.getIconType(), category.getIconTexture(), ItemStack.hashItemAndComponents(icon), icon.getCount());
+                    category.getIconType(), category.getIconTexture(), ItemUtil.hashItemStack(icon), icon.getCount());
         }
         if (!categoryListDirty && signature == lastRenderedSignature) return;
         categoryListDirty = false;

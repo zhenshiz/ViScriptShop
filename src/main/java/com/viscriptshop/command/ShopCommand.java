@@ -14,8 +14,8 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.viscript_lib.register.ICommand;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.data.*;
-import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.MoneyUtil;
+import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import lombok.SneakyThrows;
 import net.minecraft.commands.CommandBuildContext;
@@ -28,11 +28,7 @@ import net.minecraft.server.level.ServerPlayer;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @LDLRegister(name = "shop", registry = ICommand.COMMAND_ID)
@@ -171,7 +167,7 @@ public class ShopCommand implements ICommand {
         if (args.size() != 1) {
             return sendInvalidUsage(context, "viscript_shop editor [shop]");
         }
-        return openEditor(context, args.getFirst());
+        return openEditor(context, args.get(0));
     }
 
     @SneakyThrows
@@ -207,7 +203,7 @@ public class ShopCommand implements ICommand {
                 return sendInvalidUsage(context, "viscript_shop open <shop> [categoryId] [merchantId]");
             }
 
-            String shop = args.getFirst();
+            String shop = args.get(0);
             String categoryId = args.size() > 1 ? args.get(1) : null;
             String merchantId = args.size() > 2 ? args.get(2) : null;
             ViScriptShopServerUtil.serverOpenShop(player, shop, categoryId, merchantId);
@@ -224,7 +220,7 @@ public class ShopCommand implements ICommand {
             return sendInvalidUsage(context, "viscript_shop reload [shop]");
         }
 
-        String shop = args.getFirst();
+        String shop = args.get(0);
         ViScriptShopServerUtil.reloadOpenShop(shop);
         context.getSource().sendSuccess(() -> Component.translatable("command.viscript_shop.reload.shop"), true);
         return 1;
@@ -237,7 +233,7 @@ public class ShopCommand implements ICommand {
             return sendInvalidUsage(context, "viscript_shop setQuickOpening <shop> <true|false>");
         }
 
-        String shop = args.getFirst();
+        String shop = args.get(0);
         Boolean quickOpening = parseBoolean(args.get(1));
         if (quickOpening == null) {
             context.getSource().sendFailure(Component.translatable("command.viscript_shop.error.invalid_boolean", args.get(1)));
@@ -261,7 +257,7 @@ public class ShopCommand implements ICommand {
             return sendInvalidUsage(context, "viscript_shop setStock <shop> <categoryId> <merchantId> <stock>");
         }
 
-        String shop = args.getFirst();
+        String shop = args.get(0);
         String categoryId = args.get(1);
         String merchantId = args.get(2);
         Integer stock = parseInteger(args.get(3));
@@ -288,7 +284,7 @@ public class ShopCommand implements ICommand {
             return sendInvalidUsage(context, "viscript_shop addStock <shop> <categoryId> <merchantId> <amount>");
         }
 
-        String shop = args.getFirst();
+        String shop = args.get(0);
         String categoryId = args.get(1);
         String merchantId = args.get(2);
         Integer amount = parseInteger(args.get(3));
@@ -316,7 +312,7 @@ public class ShopCommand implements ICommand {
             return sendInvalidUsage(context, "viscript_shop remove <shop> <categoryId> <merchantId>");
         }
 
-        String shop = args.getFirst();
+        String shop = args.get(0);
         String categoryId = args.get(1);
         String merchantId = args.get(2);
 
@@ -440,9 +436,9 @@ public class ShopCommand implements ICommand {
         if (argIndex == 0) {
             suggestMatching(shopIds, currentBuilder);
         } else if (argIndex == 1 && !tokens.isEmpty()) {
-            suggestCategories(tokens.getFirst(), currentBuilder);
+            suggestCategories(tokens.get(0), currentBuilder);
         } else if (argIndex == 2 && tokens.size() >= 2) {
-            suggestMerchants(tokens.getFirst(), tokens.get(1), currentBuilder);
+            suggestMerchants(tokens.get(0), tokens.get(1), currentBuilder);
         }
 
         return currentBuilder.buildFuture();

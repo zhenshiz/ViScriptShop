@@ -8,7 +8,7 @@ import dev.ftb.mods.ftbquests.quest.reward.RewardTypes;
 import dev.ftb.mods.ftbquests.quest.task.TaskType;
 import dev.ftb.mods.ftbquests.quest.task.TaskTypes;
 import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.Dist;
 
 /**
  * 注册 VSS 提供给 FTB Quests 的任务目标和奖励类型。
@@ -41,7 +41,7 @@ public final class FtbQuestsComPat {
      * @param dist 当前物理运行端
      */
     public static void init(Dist dist) {
-        if (dist == Dist.CLIENT) {
+        if (dist.isClient()) {
             FtbQuestsClientComPat.init();
         }
     }

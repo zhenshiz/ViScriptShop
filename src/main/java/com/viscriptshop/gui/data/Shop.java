@@ -15,13 +15,7 @@ import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.util.ShopHelper;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.nbt.*;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.File;
@@ -59,7 +53,7 @@ public class Shop implements IRuntimeFileProject {
     }
 
     @Override
-    public CompoundTag serializeProject(@NotNull HolderLookup.Provider provider) {
+    public CompoundTag serializeProject(HolderLookup.Provider provider) {
         return serializeRuntimeFile(provider);
     }
 
@@ -69,7 +63,7 @@ public class Shop implements IRuntimeFileProject {
     }
 
     @Override
-    public void deserializeProject(@NotNull HolderLookup.Provider provider, @NotNull CompoundTag nbt) {
+    public void deserializeProject(HolderLookup.Provider provider, CompoundTag nbt) {
         deserializeNBT(provider, nbt);
     }
 
@@ -179,8 +173,7 @@ public class Shop implements IRuntimeFileProject {
      * @param version 数据版本号，如果无法确定版本传入 1
      * @return 迁移后的商店运行时数据
      */
-    @NotNull
-    public static CompoundTag migrateShopData(@NotNull CompoundTag shopTag, int version) {
+    public static CompoundTag migrateShopData(CompoundTag shopTag, int version) {
         if (version >= VERSION) {
             if (shopTag.contains(VERSION_TAG, Tag.TAG_INT)) {
                 return shopTag;
@@ -200,8 +193,7 @@ public class Shop implements IRuntimeFileProject {
         return currentTag;
     }
 
-    @NotNull
-    private static CompoundTag migrateToNextVersion(@NotNull CompoundTag shopTag, int fromVersion) {
+    private static CompoundTag migrateToNextVersion(CompoundTag shopTag, int fromVersion) {
         return switch (fromVersion) {
             case 1 -> migrateV1ToV2(shopTag);
             case 2 -> migrateV2ToV3(shopTag);
@@ -498,10 +490,10 @@ public class Shop implements IRuntimeFileProject {
             CompoundTag data;
             if (FORMAT.compressed()) {
                 try (var inputStream = Files.newInputStream(file.toPath())) {
-                    data = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap());
+                    data = NbtIo.readCompressed(inputStream);
                 }
             } else {
-                data = Objects.requireNonNull(NbtIo.read(file.toPath()));
+                data = Objects.requireNonNull(NbtIo.read(file));
             }
             var project = getProjectCreator().get();
             project.deserializeProject(Platform.getFrozenRegistry(), data);
@@ -515,9 +507,9 @@ public class Shop implements IRuntimeFileProject {
             }
             var fileData = serializeRuntimeFile(project);
             if (FORMAT.compressed()) {
-                NbtIo.writeCompressed(fileData, file.toPath());
+                NbtIo.writeCompressed(fileData, file);
             } else {
-                NbtIo.write(fileData, file.toPath());
+                NbtIo.write(fileData, file);
             }
             ShopHelper.clearCache();
         }
@@ -527,10 +519,10 @@ public class Shop implements IRuntimeFileProject {
             CompoundTag fileData;
             if (FORMAT.compressed()) {
                 try (var inputStream = Files.newInputStream(file.toPath())) {
-                    fileData = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap());
+                    fileData = NbtIo.readCompressed(inputStream);
                 }
             } else {
-                fileData = Objects.requireNonNull(NbtIo.read(file.toPath()));
+                fileData = Objects.requireNonNull(NbtIo.read(file));
             }
             return !serializeRuntimeFile(project).equals(fileData);
         }

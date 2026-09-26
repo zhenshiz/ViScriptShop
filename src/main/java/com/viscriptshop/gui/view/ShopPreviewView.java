@@ -11,8 +11,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.viscriptshop.gui.ShopEditor;
-import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
 import com.viscriptshop.gui.components.MerchantGiftPreview;
+import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.MerchantItemInfo;
@@ -20,14 +20,13 @@ import com.viscriptshop.gui.data.Shop;
 import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.UIElementUtil;
-import dev.vfyjxf.taffy.style.*;
+import dev.vfyjxf.taffy.style.AlignContent;
+import dev.vfyjxf.taffy.style.AlignItems;
+import dev.vfyjxf.taffy.style.FlexDirection;
+import dev.vfyjxf.taffy.style.TaffyDisplay;
 import net.minecraft.network.chat.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.IntStream;
 
 public class ShopPreviewView extends View {

@@ -11,12 +11,10 @@ import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.event.neoforge.ShopServerEvent;
 import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.gui.data.AggregatedResources;
-import com.viscriptshop.gui.data.CategoryInfo;
-import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.ShopInfo;
 import com.viscriptshop.network.s2c.S2CPayload;
-import com.viscriptshop.promotion.PromotionEngine;
 import com.viscriptshop.promotion.ConditionItemPayment;
+import com.viscriptshop.promotion.PromotionEngine;
 import com.viscriptshop.promotion.TradeQuote;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.ViScriptShopServerUtil;
@@ -25,7 +23,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
 public class BuyMerchantPayload {
     public static final String BUY_MERCHANT = C2SPayload.MOD_ID + "buy_merchant";
@@ -49,7 +47,7 @@ public class BuyMerchantPayload {
         if (cost.hasMissingItems() || gain.hasMissingItems()) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.buy.missing_item"));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
@@ -60,11 +58,11 @@ public class BuyMerchantPayload {
                             "viscript_shop.message.output_target.unavailable",
                             outputTarget.getItemOutputUnavailableReason(player)
                     ));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
-        if (NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyPre(player, shopInfo, cost, gain)).isCanceled()) return;
+        if (MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyPre(player, shopInfo, cost, gain))) return;
 
         // 检查库存是否充足
         var playerStageFlags = ViScriptShopServerUtil.getStageFlags(player);
@@ -78,7 +76,7 @@ public class BuyMerchantPayload {
             if (!categoryInfo.canAccess(playerStageFlags)) {
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                         Component.translatable("viscript_shop.message.stage_flags.missing"));
-                NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+                MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
                 return;
             }
 
@@ -94,7 +92,7 @@ public class BuyMerchantPayload {
             if (!merchantInfo.canAccess(playerStageFlags)) {
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                         Component.translatable("viscript_shop.message.stage_flags.missing"));
-                NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+                MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
                 return;
             }
 
@@ -105,7 +103,7 @@ public class BuyMerchantPayload {
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.UPDATE_OUT_OF_STOCK,
                         purchaseEntry.getCategoryId(), purchaseEntry.getMerchantId(), stock);
                 // 库存不足
-                NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+                MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
                 return;
             }
         }
@@ -115,7 +113,7 @@ public class BuyMerchantPayload {
         if (maxShopUiGiveItemsPerPurchase >= 0 && totalGainItemCount > maxShopUiGiveItemsPerPurchase) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.buy.too_many_items", maxShopUiGiveItemsPerPurchase));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
@@ -124,7 +122,7 @@ public class BuyMerchantPayload {
         if (!conditionPayment.isAffordable()) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.promotion.items_unavailable"));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
         var regularItemCosts = quote.regularItemCosts();
@@ -134,7 +132,7 @@ public class BuyMerchantPayload {
             if (!itemStack.isEmpty() && conditionPayment.availableFor(player, itemEntry) < itemEntry.getCount()) {
                 // 物品数量不够
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR, Component.translatable("viscript_shop.message.notEnoughItem", itemStack.getItem().getDescription().getString()));
-                NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+                MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
                 return;
             }
         }
@@ -147,7 +145,7 @@ public class BuyMerchantPayload {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.noEnoughMoney",
                             MoneyUtil.format(MoneyUtil.add(netMoneyCost, -playerMoney))));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
@@ -155,7 +153,7 @@ public class BuyMerchantPayload {
         if (!conditionPayment.consume(player)) {
             RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
                     Component.translatable("viscript_shop.message.promotion.items_unavailable"));
-            NeoForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+            MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
             return;
         }
 
@@ -216,7 +214,7 @@ public class BuyMerchantPayload {
 
         RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.SUCCESS,
                 Component.translatable("viscript_shop.message.buySuccess"));
-        NeoForge.EVENT_BUS.post(new ShopServerEvent.BuySuccess(player, shopInfo, cost, gain));
+        MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuySuccess(player, shopInfo, cost, gain));
 
         // 交易全部完成后以服务端真实背包为准刷新物品计数，再重新加载 UI。
         GetItemCountC2SPayload.sendItemCountSnapshot(player, shopInfo);

@@ -7,9 +7,8 @@ import dev.ftb.mods.ftbquests.quest.TeamData;
 import dev.ftb.mods.ftbquests.quest.task.ISingleLongValueTask;
 import dev.ftb.mods.ftbquests.quest.task.Task;
 import dev.ftb.mods.ftbquests.quest.task.TaskType;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
@@ -95,25 +94,25 @@ final class VirtualCurrencyTask extends Task implements ISingleLongValueTask {
     }
 
     @Override
-    public void writeData(CompoundTag tag, HolderLookup.Provider provider) {
-        super.writeData(tag, provider);
+    public void writeData(CompoundTag tag) {
+        super.writeData(tag);
         tag.putLong(AMOUNT_TAG, amount);
     }
 
     @Override
-    public void readData(CompoundTag tag, HolderLookup.Provider provider) {
-        super.readData(tag, provider);
+    public void readData(CompoundTag tag) {
+        super.readData(tag);
         amount = tag.contains(AMOUNT_TAG) ? clampAmount(tag.getLong(AMOUNT_TAG)) : 100L;
     }
 
     @Override
-    public void writeNetData(RegistryFriendlyByteBuf buffer) {
+    public void writeNetData(FriendlyByteBuf buffer) {
         super.writeNetData(buffer);
         buffer.writeVarLong(amount);
     }
 
     @Override
-    public void readNetData(RegistryFriendlyByteBuf buffer) {
+    public void readNetData(FriendlyByteBuf buffer) {
         super.readNetData(buffer);
         amount = clampAmount(buffer.readVarLong());
     }

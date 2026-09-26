@@ -6,7 +6,6 @@ import com.viscriptshop.Config;
 import com.viscriptshop.gui.data.Shop;
 import com.viscriptshop.gui.data.ShopInfo;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 
 import javax.annotation.Nullable;
@@ -47,7 +46,7 @@ public class ShopHelper {
         CompoundTag compoundTag;
         if (!file.exists()) return null;
         try (var inputStream = Files.newInputStream(file.toPath())) {
-            compoundTag = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap());
+            compoundTag = NbtIo.readCompressed(inputStream);
         } catch (IOException e) {
             compoundTag = new CompoundTag();
         }

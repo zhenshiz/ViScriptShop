@@ -18,10 +18,9 @@ import com.viscriptshop.gui.components.OptionalSectionConfigurator;
 import com.viscriptshop.gui.components.StageRestrictionConfigurator;
 import com.viscriptshop.promotion.PromotionRule;
 import lombok.*;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -34,7 +33,7 @@ import java.util.function.Supplier;
 @Data
 @NoArgsConstructor
 public class CategoryInfo implements IConfigurable, IPersistedSerializable, StageRestricted {
-    public static final StreamCodec<ByteBuf, CategoryInfo> STREAM_CODEC;
+    public static final StreamCodec<CategoryInfo> STREAM_CODEC;
     public static final Codec<CategoryInfo> CODEC;
 
     @Configurable(name = "viscript_shop.data.category.id")

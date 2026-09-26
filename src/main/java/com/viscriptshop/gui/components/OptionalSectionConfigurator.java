@@ -1,9 +1,10 @@
 package com.viscriptshop.gui.components;
 
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
+import lombok.Getter;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -18,6 +19,7 @@ public class OptionalSectionConfigurator extends ConfiguratorGroup {
     private final Supplier<Boolean> enabledSupplier;
     private final Consumer<Boolean> enabledUpdater;
     private final Toggle enabledToggle;
+    @Getter
     private boolean enabled;
 
     /**
@@ -55,15 +57,6 @@ public class OptionalSectionConfigurator extends ConfiguratorGroup {
         enabledToggle.setId(id + "_control");
         enabledToggle.toggleButton.setId(id);
         return this;
-    }
-
-    /**
-     * 返回此分组当前是否允许编辑。
-     *
-     * @return 启用时返回 {@code true}
-     */
-    public boolean isEnabled() {
-        return enabled;
     }
 
     @Override

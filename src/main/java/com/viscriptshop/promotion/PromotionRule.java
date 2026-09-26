@@ -16,13 +16,12 @@ import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ViScriptItemStack;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.promotion.condition.PromotionConditionEntry;
-import io.netty.buffer.ByteBuf;
 import lombok.Data;
 import lombok.Getter;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -41,8 +40,7 @@ import java.util.function.Supplier;
 @Data
 public class PromotionRule implements IConfigurable, IPersistedSerializable {
     public static final Codec<PromotionRule> CODEC = PersistedParser.createCodec(PromotionRule::new);
-    public static final StreamCodec<ByteBuf, PromotionRule> STREAM_CODEC =
-            PersistedParser.createStreamCodec(PromotionRule::new);
+    public static final StreamCodec<PromotionRule> STREAM_CODEC = PersistedParser.createStreamCodec(PromotionRule::new);
 
     @Configurable(name = "viscript_shop.data.promotion.id")
     private String id = "";
@@ -234,7 +232,7 @@ public class PromotionRule implements IConfigurable, IPersistedSerializable {
             if (father.getConfigurators().size() <= previousSize) {
                 throw new IllegalStateException("未能为促销字段创建配置组件：" + fieldName);
             }
-            return father.getConfigurators().getLast();
+            return father.getConfigurators().get(father.getConfigurators().size() - 1);
         } catch (NoSuchFieldException exception) {
             throw new IllegalStateException("促销字段不存在：" + fieldName, exception);
         }

@@ -6,14 +6,12 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ViScriptItemStack;
 import com.viscriptshop.util.MoneyUtil;
-import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -29,7 +27,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 public class AggregatedResources implements IPersistedSerializable {
-    public static final StreamCodec<ByteBuf, AggregatedResources> STREAM_CODEC;
+    public static final StreamCodec<AggregatedResources> STREAM_CODEC;
     public static final Codec<AggregatedResources> CODEC;
 
     @Persisted(key = "items")
@@ -57,7 +55,7 @@ public class AggregatedResources implements IPersistedSerializable {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class PurchaseEntry implements IPersistedSerializable {
-        public static final StreamCodec<ByteBuf, PurchaseEntry> STREAM_CODEC;
+        public static final StreamCodec<PurchaseEntry> STREAM_CODEC;
         public static final Codec<PurchaseEntry> CODEC;
 
         @Persisted
@@ -79,7 +77,7 @@ public class AggregatedResources implements IPersistedSerializable {
     @Data
     @NoArgsConstructor
     public static class ItemEntry implements IPersistedSerializable {
-        public static final StreamCodec<ByteBuf, ItemEntry> STREAM_CODEC;
+        public static final StreamCodec<ItemEntry> STREAM_CODEC;
         public static final Codec<ItemEntry> CODEC;
 
         @Persisted(key = "itemStack")
@@ -196,15 +194,6 @@ public class AggregatedResources implements IPersistedSerializable {
         }
 
         /**
-         * 获取独立保存的汇总数量。
-         *
-         * @return 物品数量
-         */
-        public long getCount() {
-            return count;
-        }
-
-        /**
          * 更新独立保存的汇总数量。
          *
          * @param count 新数量；负数会按零处理
@@ -235,7 +224,7 @@ public class AggregatedResources implements IPersistedSerializable {
             return matchRule == null ? new ItemMatchRule() : matchRule;
         }
 
-        private static Set<DataComponentType<?>> componentSet(ItemMatchRule rule) {
+        private static Set<String> componentSet(ItemMatchRule rule) {
             return new HashSet<>(rule.resolvedComponents());
         }
 

@@ -3,7 +3,7 @@ package com.viscriptshop.event.neoforge;
 import com.viscriptshop.gui.ShopUI;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import net.neoforged.bus.api.Event;
+import net.minecraftforge.eventbus.api.Event;
 
 @Getter
 @AllArgsConstructor

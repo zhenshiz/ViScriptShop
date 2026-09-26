@@ -6,8 +6,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.SearchComponent;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
-import com.viscriptshop.gui.components.theme.ShopButton;
 import com.viscriptshop.gui.components.ShopOutputTargetButton;
+import com.viscriptshop.gui.components.theme.ShopButton;
 import net.minecraft.world.item.ItemStack;
 
 public record ShopUiElements(

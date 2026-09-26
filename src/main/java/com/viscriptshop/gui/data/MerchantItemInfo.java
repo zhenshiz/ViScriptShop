@@ -9,11 +9,10 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ViScriptItemStack;
-import io.netty.buffer.ByteBuf;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -27,7 +26,7 @@ import java.util.HashMap;
 @Data
 @NoArgsConstructor
 public class MerchantItemInfo implements IConfigurable, IPersistedSerializable {
-    public static final StreamCodec<ByteBuf, MerchantItemInfo> STREAM_CODEC;
+    public static final StreamCodec<MerchantItemInfo> STREAM_CODEC;
     public static final Codec<MerchantItemInfo> CODEC;
 
     @Configurable(name = "viscript_shop.data.merchant.item.actual")
@@ -159,7 +158,7 @@ public class MerchantItemInfo implements IConfigurable, IPersistedSerializable {
             if (father.getConfigurators().size() <= previousSize) {
                 throw new IllegalStateException("No configurator created for merchant item field: " + fieldName);
             }
-            return father.getConfigurators().getLast();
+            return father.getConfigurators().get(father.getConfigurators().size() - 1);
         } catch (NoSuchFieldException exception) {
             throw new IllegalStateException("Missing merchant item field: " + fieldName, exception);
         }

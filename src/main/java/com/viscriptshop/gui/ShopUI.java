@@ -3,7 +3,6 @@ package com.viscriptshop.gui;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.StringConfigurator;
 import com.lowdragmc.lowdraglib2.gui.texture.*;
-import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.GridTemplate;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
@@ -15,24 +14,19 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.lowdragmc.lowdraglib2.utils.search.IResultHandler;
+import com.viscript_lib.register.IContainerHelper;
+import com.viscript_lib.util.CountTextUtil;
+import com.viscript_lib.util.item.ItemOutputTargets;
+import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.Config;
 import com.viscriptshop.ShopRegistries;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.event.neoforge.ShopClientEvent;
-import com.viscriptshop.gui.components.Message;
-import com.viscriptshop.gui.components.MerchantItemAmountDisplay;
-import com.viscriptshop.gui.components.MerchantGiftPreview;
-import com.viscriptshop.gui.components.PlayerHeadElement;
-import com.viscriptshop.gui.components.SceneToggleBuilder;
-import com.viscriptshop.gui.components.ShopOutputTargetButton;
+import com.viscriptshop.gui.components.*;
 import com.viscriptshop.gui.components.theme.ShopButton;
 import com.viscriptshop.gui.components.theme.ShopScrollerView;
 import com.viscriptshop.gui.components.theme.ShopTheme;
-import com.viscriptshop.gui.data.AggregatedResources;
-import com.viscriptshop.gui.data.CategoryInfo;
-import com.viscriptshop.gui.data.MerchantInfo;
-import com.viscriptshop.gui.data.MerchantItemInfo;
-import com.viscriptshop.gui.data.ShopInfo;
+import com.viscriptshop.gui.data.*;
 import com.viscriptshop.gui.layout.GlassDarkShopUiLayout;
 import com.viscriptshop.gui.layout.GrayCatShopUiLayout;
 import com.viscriptshop.gui.layout.ShopUiElements;
@@ -44,12 +38,8 @@ import com.viscriptshop.promotion.PromotionEngine;
 import com.viscriptshop.promotion.PromotionResult.PriceAdjustment;
 import com.viscriptshop.promotion.PromotionRule;
 import com.viscriptshop.promotion.TradeQuote;
-import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.MoneyUtil;
-import com.viscript_lib.util.CountTextUtil;
-import com.viscript_lib.register.IContainerHelper;
-import com.viscript_lib.util.item.ItemOutputTargets;
-import com.viscript_lib.util.item.SimpleItemStackFilter;
+import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.UIElementUtil;
 import com.viscriptshop.util.ViScriptShopClientUtil;
 import dev.vfyjxf.taffy.style.*;
@@ -61,7 +51,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -155,7 +145,7 @@ public class ShopUI extends UIElement {
                 selectedCategory = this.currentShopInfo.getCategoryInfos().stream()
                         .filter(category -> !isCategoryLocked(category))
                         .findFirst()
-                        .orElse(this.currentShopInfo.getCategoryInfos().getFirst());
+                        .orElse(this.currentShopInfo.getCategoryInfos().get(0));
             }
 
             // 根据 merchantId 查找对应商品的索引
@@ -179,7 +169,7 @@ public class ShopUI extends UIElement {
             layout.heightPercent(100);
             layout.justifyContent(AlignContent.CENTER);
             layout.alignItems(AlignItems.CENTER);
-        }).addEventListener(UIEvents.TICK, event -> NeoForge.EVENT_BUS.post(new ShopClientEvent.Tick(this)));
+        }).addEventListener(UIEvents.TICK, event -> MinecraftForge.EVENT_BUS.post(new ShopClientEvent.Tick(this)));
 
         ShopUiElements elements = createUiElements(title);
         this.searchComponent = elements.itemSearch();
@@ -577,7 +567,7 @@ public class ShopUI extends UIElement {
             //搜索筛选 物品筛选和序号筛选
             if (this.searchMode) {
                 if (!this.searchItem.isEmpty()) {
-                    boolean isMatch = ItemStack.isSameItemSameComponents(merchantInfo.getItemResult(), this.searchItem) ||
+                    boolean isMatch = ItemStack.isSameItemSameTags(merchantInfo.getItemResult(), this.searchItem) ||
                             merchantInfo.getItemAMatchRule().matches(merchantInfo.getItemA(), this.searchItem) ||
                             merchantInfo.getItemBMatchRule().matches(merchantInfo.getItemB(), this.searchItem);
                     if (!isMatch) {
@@ -1628,7 +1618,7 @@ public class ShopUI extends UIElement {
             return;
         }
         for (ItemStack existing : list) {
-            if (ItemStack.isSameItemSameComponents(existing, stack)) {
+            if (ItemStack.isSameItemSameTags(existing, stack)) {
                 return;
             }
         }

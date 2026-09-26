@@ -1,121 +1,44 @@
-// 插件由根项目 build.gradle 的 subprojects 块统一应用
+
 version = mod_version
 group = mod_group_id
 
 repositories {
-    //kubejs
-    maven {
-        name = "Latvian"
-        url = "https://maven.latvian.dev/releases"
-        content {
-            includeGroup "dev.latvian.mods"
-            includeGroup "dev.latvian.apps"
-        }
-    }
-    maven {
-        name = "JitPack"
-        url = "https://jitpack.io"
-        content {
-            includeGroup "com.github.rtyley"
-        }
-    }
-
-    // LDLib2
-    maven {
-        name = "Jared's maven"
-        url = "https://maven.firstdarkdev.xyz/snapshots"
-    }
-
-    //Modrinth
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
-    }
-
-    //cf
-    maven {
-        url = "https://www.cursemaven.com"
-        content {
-            includeGroup "curse.maven"
-        }
-    }
-
-    maven {
-        url "https://maven.sighs.cc/repository/maven-public/"
-    }
-
-    maven {
-        name = "Illusive Soulworks maven"
-        url = "https://maven.theillusivec4.top/"
-    }
-    maven {
-        name = "magicTeam MavenReleases"
-        url = "https://maven.confluence.ink/releases"
-    }
-    maven {
-        name = "magicTeam MavenSnapshots"
-        url = "https://maven.confluence.ink/snapshots"
-    }
-    maven {
-        name = "BlameJared"
-        url = "https://maven.blamejared.com"
-    }
-
-    maven {
-        name = "GeckoLib"
-        url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
-    }
 }
 
 base {
-    archivesName = "${mod_name}-neoforge-${minecraft_version}"
+    archivesName = "${mod_name}-forge-${minecraft_version}"
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
-
-configurations.matching { it.name != 'mixinAgent' }.configureEach {
+configurations.configureEach {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
-// version 与 parchment 由根项目 build.gradle 的 subprojects 块统一配置
-neoForge {
+legacyForge {
+    // This line is optional. Access Transformers are automatically detected
+    // accessTransformers = project.files('src/main/resources/META-INF/accesstransformer.cfg')
+
     runs {
         client {
             client()
-
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        clinet2 {
-            client()
-
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-            programArgument '--username'
-            programArgument 'zhenshiz'
+            // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
+            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+            var file = file("../runs/client")
+            if (!file.exists()) file.mkdirs()
+            setGameDirectory file
         }
 
         server {
             server()
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--nogui'
+            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+            var file = file("../runs/server")
+            if (!file.exists()) file.mkdirs()
+            setGameDirectory file
         }
 
-        gameTestServer {
-            type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        data {
-            data()
-
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-        }
-
+        // applies to all the run configs above
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
-
-            jvmArguments.add '-XX:+AllowEnhancedClassRedefinition'
-            jvmArguments.add '-XX:HotswapAgent=fatjar'
-
             logLevel = org.slf4j.event.Level.DEBUG
         }
     }
@@ -127,56 +50,24 @@ neoForge {
     }
 }
 
-apply from: project.file('gradle/ldlib2-uitest.gradle')
-
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-
     implementation project(":ViScriptLib")
-    jarJar "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${vsl_jij_version}"
-
-    //测试用模组
-    //iris
-    compileOnly "maven.modrinth:sodium:${sodium_version}"
-    compileOnly "maven.modrinth:iris:${iris_version}"
-
-    //联动模组
-    // KubeJS
-    compileOnly "dev.latvian.mods:rhino:${rhino_version}"
-    compileOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}"
-    //jei
-    implementation "maven.modrinth:jei:${jei_version}"
-    //精妙背包
-    implementation "maven.modrinth:sophisticated-backpacks:${sophisticated_backpacks_version}"
-    implementation "maven.modrinth:sophisticated-core:${sophisticated_core_version}"
-    //超越维度
-    runtimeOnly "curse.maven:beyond-dimensions-1222890:${beyonddimensions_version}"
-    //ftb
-    compileOnly "curse.maven:ftb-quests-forge-289412:7324136"
-    compileOnly "curse.maven:ftb-library-forge-404465:7312258"
-    compileOnly "curse.maven:ftb-teams-forge-404468:7369021"
-    compileOnly "curse.maven:architectury-api-419699:5786327"
-    runtimeOnly "curse.maven:ftb-quests-forge-289412:7324136"
-    runtimeOnly "curse.maven:ftb-library-forge-404465:7312258"
-    runtimeOnly "curse.maven:ftb-teams-forge-404468:7369021"
-    runtimeOnly "curse.maven:architectury-api-419699:5786327"
-    //Lightman's Currency
-    implementation "maven.modrinth:lightmans-currency:${lightmans_currency_version}"
-    //汇流来世
-    implementation "top.theillusivec4.curios:curios-neoforge:${curios_version}"
-    implementation "org.confluence.lib:Confluence-Magic-Lib:${confluence_lib_version}"
-    implementation ("org.confluence.mod:ConfluenceOtherworld:${confluence_version}") {
-        transitive = false
-    }
-    compileOnly "org.confluence:TerraCurio:${terra_curio_version}"
-    compileOnly "org.confluence:TerraEntity:${terra_entity_version}"
-    //Magic Coins
-    implementation "curse.maven:magic-coins-597281:8719268"
-    implementation "curse.maven:sg-economy-api-1446971:8719196"
-    //jech
-    implementation "curse.maven:just-enough-characters-250702:7320033"
+    jarJar(project(":ViScriptLib"))
 }
+
+// Uncomment the lines below if you wish to configure mixin. The mixin file should be named modid.mixins.json.
+/*mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+jar {
+    manifest.attributes([
+            "MixinConfigs": "${mod_id}.mixins.json"
+    ])
+}*/
 
 publishing {
     publications {
@@ -236,29 +127,23 @@ publishing {
 }
 
 tasks.withType(ProcessResources).configureEach {
-    var replaceProperties = [minecraft_version      : minecraft_version,
-                             minecraft_version_range: minecraft_version_range,
-                             neo_version            : neo_version,
-                             neo_version_range      : neo_version_range,
-                             loader_version_range   : loader_version_range,
-                             mod_id                 : mod_id,
-                             mod_name               : mod_name,
-                             mod_license            : mod_license,
-                             mod_version            : mod_version,
-                             mod_authors            : mod_authors,
-                             mod_description        : mod_description,
-                             ldlib2_version         : ldlib2_version,
-                             viscriptlib_version    : viscriptlib_version]
+    var replaceProperties = [
+            minecraft_version        : minecraft_version,
+            minecraft_version_range  : minecraft_version_range,
+            forge_version            : forge_version,
+            forge_version_range      : forge_version_range,
+            loader_version_range     : loader_version_range,
+            mod_id                   : mod_id,
+            mod_name                 : mod_name,
+            mod_license              : mod_license,
+            mod_version              : mod_version,
+            mod_authors              : mod_authors,
+            mod_description          : mod_description,
+            ldlib2_version           : ldlib2_version,
+            viscriptlib_version      : project(":ViScriptLib").mod_version
+    ]
     inputs.properties replaceProperties
-
-    filesMatching(['META-INF/neoforge.mods.toml']) {
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
         expand replaceProperties
-    }
-}
-
-idea {
-    module {
-        downloadSources = true
-        downloadJavadoc = true
     }
 }

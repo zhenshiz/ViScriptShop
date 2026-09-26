@@ -37,7 +37,7 @@ public final class ConfiguratorFieldHelper {
             if (group.getConfigurators().size() <= previousSize) {
                 throw new IllegalArgumentException("未能为配置字段创建组件：" + fieldName);
             }
-            return group.getConfigurators().getLast();
+            return group.getConfigurators().get(group.getConfigurators().size() - 1);
         } catch (NoSuchFieldException exception) {
             throw new IllegalArgumentException("配置字段不存在：" + fieldName, exception);
         }

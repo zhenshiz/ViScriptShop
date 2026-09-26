@@ -82,7 +82,8 @@ public class DialogSelect extends Dialog {
         String selected = selector == null ? null : selector.getValue();
         if (selector != null) {
             selector.hide();
-            removeExternalElement(selector.dialog);
+            // ldlib2 新版才有的内容，但是不写这个似乎也不影响功能
+            // removeExternalElement(selector.dialog);
         }
         selector = null;
         contentContainer.clearAllChildren();
@@ -108,9 +109,9 @@ public class DialogSelect extends Dialog {
         selector.setCandidateUIProvider(value -> candidate(value == null ? null : map.get(value), value));
         var paths = map.keySet().stream().sorted().toList();
         selector.setCandidates(paths);
-        selector.setValue(selected != null && map.containsKey(selected) ? selected : paths.getFirst(), false);
+        selector.setValue(selected != null && map.containsKey(selected) ? selected : paths.get(0), false);
         contentContainer.addChild(selector);
-        addExternalElement(selector.dialog);
+        // addExternalElement(selector.dialog);
     }
 
     private UIElement candidate(String name, String path) {

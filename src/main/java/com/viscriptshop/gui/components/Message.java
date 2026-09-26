@@ -11,8 +11,6 @@ import com.lowdragmc.lowdraglib2.math.interpolate.Eases;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.components.theme.ShopTheme;
 import dev.vfyjxf.taffy.style.*;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

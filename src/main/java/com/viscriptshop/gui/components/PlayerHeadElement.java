@@ -24,7 +24,7 @@ public class PlayerHeadElement extends UIElement {
             LocalPlayer player = minecraft.player;
 
             if (player != null) {
-                ResourceLocation skin = player.getSkin().texture();
+                ResourceLocation skin = player.getSkinTextureLocation();
                 var x = (int) getPositionX();
                 var y = (int) getPositionY();
                 var size = (int) getSizeWidth();

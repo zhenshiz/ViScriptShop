@@ -9,12 +9,11 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscriptshop.promotion.PromotionContext;
 import com.viscriptshop.promotion.PromotionRegistries;
-import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.codec.StreamCodec;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +29,7 @@ import java.util.List;
 public class PromotionConditionEntry implements IConfigurable, IPersistedSerializable {
     public static final Codec<PromotionConditionEntry> CODEC =
             PersistedParser.createCodec(PromotionConditionEntry::new);
-    public static final StreamCodec<ByteBuf, PromotionConditionEntry> STREAM_CODEC =
+    public static final StreamCodec<PromotionConditionEntry> STREAM_CODEC =
             PersistedParser.createStreamCodec(PromotionConditionEntry::new);
 
     @Persisted

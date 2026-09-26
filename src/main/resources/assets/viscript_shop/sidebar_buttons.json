@@ -1,0 +1,8 @@
+{
+  "shop": {
+    "group": "ftblibrary:info",
+    "icon": "viscript_shop:textures/icons/shop.png",
+    "x": 100,
+    "click": "static_method:com.viscriptshop.compat.FtbLibraryComPat:click"
+  }
+}

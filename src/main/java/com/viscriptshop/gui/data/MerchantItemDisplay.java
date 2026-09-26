@@ -1,7 +1,7 @@
 package com.viscriptshop.gui.data;
 
-import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.ConfiguratorParser;
+import com.lowdragmc.lowdraglib2.configurator.IConfigurable;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigSelector;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
@@ -13,14 +13,13 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.gui.configurator.ViScriptItemStackAccessor;
 import com.viscript_lib.util.item.ViScriptItemStack;
-import io.netty.buffer.ByteBuf;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
@@ -35,7 +34,7 @@ import java.util.HashMap;
 @Data
 @NoArgsConstructor
 public class MerchantItemDisplay implements IConfigurable, IPersistedSerializable {
-    public static final StreamCodec<ByteBuf, MerchantItemDisplay> STREAM_CODEC;
+    public static final StreamCodec<MerchantItemDisplay> STREAM_CODEC;
     public static final Codec<MerchantItemDisplay> CODEC;
 
     /** 当前图标展示方式，默认跟随实际物品。 */
@@ -213,7 +212,7 @@ public class MerchantItemDisplay implements IConfigurable, IPersistedSerializabl
             if (father.getConfigurators().size() <= previousSize) {
                 throw new IllegalStateException("No configurator created for merchant item display field: " + fieldName);
             }
-            return father.getConfigurators().getLast();
+            return father.getConfigurators().get(father.getConfigurators().size() - 1);
         } catch (NoSuchFieldException exception) {
             throw new IllegalStateException("Missing merchant item display field: " + fieldName, exception);
         }

@@ -2,15 +2,13 @@ package com.viscriptshop.compat.ftbquests;
 
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.ViScriptShopServerUtil;
-import dev.architectury.networking.NetworkManager;
 import dev.ftb.mods.ftblibrary.config.ConfigGroup;
-import dev.ftb.mods.ftbquests.net.NotifyRewardMessage;
+import dev.ftb.mods.ftbquests.net.DisplayRewardToastMessage;
 import dev.ftb.mods.ftbquests.quest.Quest;
 import dev.ftb.mods.ftbquests.quest.reward.Reward;
 import dev.ftb.mods.ftbquests.quest.reward.RewardType;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,35 +38,32 @@ final class VirtualCurrencyReward extends Reward {
 
         ViScriptShopServerUtil.addMoney(player, granted);
         if (notify) {
-            NetworkManager.sendToPlayer(player, new NotifyRewardMessage(
-                    id,
+            new DisplayRewardToastMessage(id,
                     Component.translatable("viscript_shop.ftbquests.reward.received", MoneyUtil.format(granted)),
-                    FtbQuestsComPat.VIRTUAL_CURRENCY_ICON,
-                    disableRewardScreenBlur
-            ));
+                    FtbQuestsComPat.VIRTUAL_CURRENCY_ICON).sendTo(player);
         }
     }
 
     @Override
-    public void writeData(CompoundTag tag, HolderLookup.Provider provider) {
-        super.writeData(tag, provider);
+    public void writeData(CompoundTag tag) {
+        super.writeData(tag);
         tag.putDouble(AMOUNT_TAG, amount);
     }
 
     @Override
-    public void readData(CompoundTag tag, HolderLookup.Provider provider) {
-        super.readData(tag, provider);
+    public void readData(CompoundTag tag) {
+        super.readData(tag);
         amount = tag.contains(AMOUNT_TAG) ? clampAmount(tag.getDouble(AMOUNT_TAG)) : 100;
     }
 
     @Override
-    public void writeNetData(RegistryFriendlyByteBuf buffer) {
+    public void writeNetData(FriendlyByteBuf buffer) {
         super.writeNetData(buffer);
         buffer.writeDouble(amount);
     }
 
     @Override
-    public void readNetData(RegistryFriendlyByteBuf buffer) {
+    public void readNetData(FriendlyByteBuf buffer) {
         super.readNetData(buffer);
         amount = clampAmount(buffer.readDouble());
     }

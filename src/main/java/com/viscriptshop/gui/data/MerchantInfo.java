@@ -7,29 +7,28 @@ import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
-import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
+import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
-import com.viscriptshop.gui.components.ConfiguratorFieldHelper;
-import com.viscriptshop.gui.components.StageRestrictionConfigurator;
-import com.viscriptshop.gui.components.InheritedPromotionSummaryConfigurator;
-import com.viscriptshop.gui.components.OptionalSectionConfigurator;
-import com.viscriptshop.util.MoneyUtil;
 import com.viscript_lib.util.CodecUtil;
 import com.viscript_lib.util.item.ViScriptItemStack;
-import com.viscriptshop.promotion.PromotionRule;
+import com.viscriptshop.gui.components.ConfiguratorFieldHelper;
+import com.viscriptshop.gui.components.InheritedPromotionSummaryConfigurator;
+import com.viscriptshop.gui.components.OptionalSectionConfigurator;
+import com.viscriptshop.gui.components.StageRestrictionConfigurator;
 import com.viscriptshop.promotion.PromotionResolver;
+import com.viscriptshop.promotion.PromotionRule;
+import com.viscriptshop.util.MoneyUtil;
 import dev.vfyjxf.taffy.style.TaffyDisplay;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import net.minecraft.nbt.Tag;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -42,7 +41,7 @@ import java.util.function.Supplier;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MerchantInfo implements IConfigurable, IPersistedSerializable, StageRestricted {
-    public static final StreamCodec<ByteBuf, MerchantInfo> STREAM_CODEC;
+    public static final StreamCodec<MerchantInfo> STREAM_CODEC;
     public static final Codec<MerchantInfo> CODEC;
 
     //以物换物商店
@@ -227,8 +226,8 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
 
     @Deprecated
     public List<String> getFlags() {
-        if (flagGroups.size() == 1 && flagGroups.getFirst().getMode() == MerchantFlagGroup.MatchMode.AND) {
-            return flagGroups.getFirst().getFlags();
+        if (flagGroups.size() == 1 && flagGroups.get(0).getMode() == MerchantFlagGroup.MatchMode.AND) {
+            return flagGroups.get(0).getFlags();
         }
         List<String> flags = new ArrayList<>();
         for (MerchantFlagGroup group : flagGroups) {

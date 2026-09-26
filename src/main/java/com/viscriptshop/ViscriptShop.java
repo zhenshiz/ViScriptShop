@@ -8,33 +8,31 @@ import com.mojang.logging.LogUtils;
 import com.viscript_lib.gui.editor.ViScriptEditorWindow;
 import com.viscriptshop.compat.ModComPat;
 import com.viscriptshop.gui.ShopEditor;
-import com.viscriptshop.gui.data.*;
+import com.viscriptshop.gui.data.ShopSavedData;
 import com.viscriptshop.promotion.PromotionRegistries;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 
 @Mod(ViscriptShop.MOD_ID)
 public class ViscriptShop {
     public static final String MOD_ID = "viscript_shop";
     public static final Logger LOGGER = LogUtils.getLogger();
-    @Setter
-    @Getter
+    @Setter @Getter
     private static ShopSavedData shopSavedData;
 
-    public ViscriptShop(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
+    public ViscriptShop() {
         PromotionRegistries.init();
-        ShopRegistries.ATTACHMENT_TYPES.register(modEventBus);
+        ShopRegistries.ATTACHMENT_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
+        var dist = FMLEnvironment.dist;
         ModComPat.init(dist);
         PlayerUIMenuType.register(ShopEditor.SHOP_ID, ignored -> player -> {
             if (player.level().isClientSide) {
@@ -48,15 +46,15 @@ public class ViscriptShop {
             }
             return new ModularUI(UI.empty());
         });
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, String.format("%s_config.toml", MOD_ID));
-        modContainer.registerConfig(ModConfig.Type.CLIENT, Config.CLIENT_CONFIG_SPEC, String.format("%s_client.toml", MOD_ID));
-        if (dist == Dist.CLIENT) {
-            modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        ModLoadingContext context = ModLoadingContext.get();
+        context.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, String.format("%s_config.toml", MOD_ID));
+        if (dist.isClient()) {
+            context.registerConfig(ModConfig.Type.CLIENT, Config.CLIENT_CONFIG_SPEC, String.format("%s_client.toml", MOD_ID));
         }
     }
 
     public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return new ResourceLocation(MOD_ID, path);
     }
 
     public static String formattedMod(String path) {
@@ -67,56 +65,13 @@ public class ViscriptShop {
         return Minecraft.getInstance().getResourceManager().getResource(resourceLocation).isPresent();
     }
 
-    //精妙背包
-    public static boolean isSophisticatedBackpacksLoaded() {
-        return isModLoaded("sophisticatedbackpacks");
-    }
+    //jei
+    public static boolean isJEILoaded() {return isModLoaded("jei");}
 
-    //超越维度
-    public static boolean isBeyondDimensionsLoaded() {
-        return isModLoaded("beyonddimensions");
-    }
+    //FtbLibrary
+    public static boolean isFtbLibraryLoaded() {return isModLoaded("ftblibrary");}
 
-    // JEI 兼容
-    public static boolean isJEILoaded() {
-        return isModLoaded("jei");
-    }
+    public static boolean isFtbQuestsLoaded() {return isModLoaded("ftbquests");}
 
-    // Just Enough Characters 兼容
-    public static boolean isJECharactersLoaded() {
-        return isModLoaded("jecharacters");
-    }
-
-    // FTB Library 兼容
-    public static boolean isFtbLibraryLoaded() {
-        return isModLoaded("ftblibrary");
-    }
-
-    /**
-     * 检查当前运行环境是否安装了 FTB Quests。
-     *
-     * @return 安装 FTB Quests 时返回 {@code true}
-     */
-    public static boolean isFtbQuestsLoaded() {
-        return isModLoaded("ftbquests");
-    }
-
-    // Lightman's Currency 兼容
-    public static boolean isLightmansCurrencyLoaded() {
-        return isModLoaded("lightmanscurrency");
-    }
-
-    //汇流来世
-    public static boolean isConfluenceLoaded() {
-        return isModLoaded("confluence");
-    }
-
-    // Magic Coins 兼容
-    public static boolean isMagicCoinsLoaded() {
-        return isModLoaded("magic_coins");
-    }
-
-    private static boolean isModLoaded(String modId) {
-        return ModList.get().isLoaded(modId);
-    }
+    private static boolean isModLoaded(String modId) {return ModList.get().isLoaded(modId);}
 }
