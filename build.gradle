@@ -221,8 +221,9 @@ publishing {
                 "https://maven.sighs.cc/repository/maven-snapshots/" :
                 "https://maven.sighs.cc/repository/maven-releases/"
 
-        def publishUser = System.getenv("SIGHS_PUBLISH_USER")
-        def publishPassword = System.getenv("SIGHS_PUBLISH_PASSWORD")
+        // 优先环境变量，其次根项目 publish.env（由 gradle/publish-conventions.gradle 解析）
+        def publishUser = System.getenv("SIGHS_PUBLISH_USER") ?: project.findProperty('publishEnv')?.get('SIGHS_PUBLISH_USER')
+        def publishPassword = System.getenv("SIGHS_PUBLISH_PASSWORD") ?: project.findProperty('publishEnv')?.get('SIGHS_PUBLISH_PASSWORD')
 
         maven {
             name = "remoteRepo"
