@@ -293,5 +293,14 @@
   "viscript_shop.data.promotion.condition.item_match_rule": "物品组件筛选",
   "viscript_shop.data.promotion.condition.consume_item": "成交后消耗",
   "viscript_shop.data.promotion.condition.consume_item.tip": "关闭：只需持有所需数量，可反复使用（银行卡）。开启：促销生效时按购买份数消耗（优惠券）；同一规则影响多个价格只扣一次。余额、库存或券数量不足时不扣除。赠品规则仅实际赠送时消耗。",
-  "viscript_shop.message.promotion.items_unavailable": "优惠凭证数量不足或物品已变化，请减少购买份数或刷新商店后重试。"
+  "viscript_shop.message.promotion.items_unavailable": "优惠凭证数量不足或物品已变化，请减少购买份数或刷新商店后重试。",
+  "viscript_shop.jei.title": "商店交易",
+  "viscript_shop.jei.item_count": "交易数量：%s",
+  "viscript_shop.jei.open": "打开商店并定位此商品",
+  "viscript_shop.jei.unavailable": "此商品已下架或尚未解锁，请重新打开 JEI 更新。",
+  "viscript_shop.jei.money": "虚拟货币：%s",
+  "viscript_shop.jei.current_price": "当前玩家的单次交易价格；重新打开 JEI 时更新。",
+  "viscript_shop.jei.stage.unlocked": "已解锁",
+  "viscript_shop.jei.stage.locked": "尚未解锁",
+  "viscript_shop.jei.stage.group": "第 %s 组：%s [%s]"
 }

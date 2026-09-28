@@ -47,6 +47,12 @@ versionRange = "[4.5.23,)"
 ordering = "NONE"
 side = "CLIENT"
 [[dependencies."${mod_id}"]]
+modId = "jei"
+type = "optional"
+versionRange = "[19.51.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+[[dependencies."${mod_id}"]]
 modId = "ftbquests"
 type = "optional"
 versionRange = "[2101.1.20,)"

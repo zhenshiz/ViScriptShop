@@ -1,6 +1,5 @@
 package com.viscriptshop.gui.data;
 
-import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -92,7 +91,7 @@ public interface StageRestricted {
      *
      * <p>对象已经解锁时返回空列表。至少配置了一行非空自定义信息时，按列表顺序返回
      * 自定义翻译文本；否则返回根据阶段条件自动生成的默认说明。每个非空字符串均作为
-     * Minecraft 翻译键解析，未注册的键按原始键文本显示。
+     * Minecraft 翻译键保留到客户端解析，未注册的键按原始键文本显示。
      *
      * @param  playerFlags 玩家当前持有的阶段标记
      * @return 锁定时的提示行，或已经解锁时的空列表
@@ -111,9 +110,7 @@ public interface StageRestricted {
         if (messages != null) {
             for (String message : messages) {
                 if (message != null && !message.isBlank()) {
-                    customTooltips.add(Language.getInstance().has(message)
-                            ? Component.translatable(message)
-                            : Component.literal(message));
+                    customTooltips.add(Component.translatable(message));
                 }
             }
         }

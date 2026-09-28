@@ -12,6 +12,8 @@ import com.viscriptshop.gui.data.MerchantCostItemInfo;
 import com.viscriptshop.gui.data.MerchantItemDisplay;
 import com.viscriptshop.gui.data.MerchantItemInfo;
 import com.viscriptshop.gui.data.ShopInfo;
+import com.viscriptshop.gui.data.ShopDisplayEntry;
+import com.viscriptshop.gui.data.ShopDisplayBatch;
 import com.viscriptshop.promotion.PromotionRule;
 import com.viscriptshop.promotion.condition.PromotionConditionEntry;
 
@@ -34,5 +36,7 @@ public final class ShopRegisterAccessorEvent {
         event.register(PromotionConditionEntry.class, PromotionConditionEntry::new);
         event.register(PromotionRule.class, PromotionRule::new);
         event.register(ShopInfo.class, ShopInfo::new);
+        event.register(ShopDisplayEntry.class, ShopDisplayEntry::new);
+        event.register(ShopDisplayBatch.class, ShopDisplayBatch::new);
     }
 }

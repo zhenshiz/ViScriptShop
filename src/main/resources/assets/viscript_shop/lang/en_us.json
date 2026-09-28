@@ -293,5 +293,14 @@
   "viscript_shop.data.promotion.condition.item_match_rule": "Item Component Filter",
   "viscript_shop.data.promotion.condition.consume_item": "Consume on Successful Purchase",
   "viscript_shop.data.promotion.condition.consume_item.tip": "Off: keep the required items for repeat use (cards). On: consume per purchase unit when this promotion applies (coupons), once per rule even if multiple prices change. Failed transactions consume nothing. Gift rules consume only when a gift is awarded.",
-  "viscript_shop.message.promotion.items_unavailable": "Not enough promotion items, or the items changed. Reduce the purchase quantity or refresh the shop and try again."
+  "viscript_shop.message.promotion.items_unavailable": "Not enough promotion items, or the items changed. Reduce the purchase quantity or refresh the shop and try again.",
+  "viscript_shop.jei.title": "Shop Trades",
+  "viscript_shop.jei.item_count": "Trade quantity: %s",
+  "viscript_shop.jei.open": "Open shop at this trade",
+  "viscript_shop.jei.unavailable": "This offer is unavailable or locked. Reopen JEI to update it.",
+  "viscript_shop.jei.money": "Virtual currency: %s",
+  "viscript_shop.jei.current_price": "Your current price per trade. Updates when JEI is opened.",
+  "viscript_shop.jei.stage.unlocked": "Unlocked",
+  "viscript_shop.jei.stage.locked": "Locked",
+  "viscript_shop.jei.stage.group": "Group %s: %s [%s]"
 }

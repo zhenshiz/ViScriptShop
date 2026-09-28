@@ -2,9 +2,16 @@ package com.viscriptshop.compat;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.viscriptshop.ViscriptShop;
+import com.viscriptshop.compat.jei.ShopJeiClient;
+import com.viscriptshop.compat.jei.ShopRecipeCategory;
+import com.viscriptshop.compat.jei.ShopRecipeButtonFactory;
+import mezz.jei.api.registration.IAdvancedRegistration;
+import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -24,13 +31,29 @@ public class JeiHelper implements IModPlugin {
     }
 
     @Override
+    public void registerCategories(IRecipeCategoryRegistration registration) {
+        registration.addRecipeCategories(new ShopRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+    }
+
+    @Override
+    public void registerAdvanced(IAdvancedRegistration registration) {
+        var atlas = (TextureAtlas) Minecraft.getInstance().getTextureManager().getTexture(
+                ResourceLocation.fromNamespaceAndPath("jei", "textures/atlas/gui.png"));
+        registration.addRecipeButtonFactory(new ShopRecipeButtonFactory(
+                registration.getJeiHelpers().getGuiHelper().createDrawableSprite(atlas,
+                        ResourceLocation.fromNamespaceAndPath("jei", "icons/recipe_transfer"), 7, 7)));
+    }
+
+    @Override
     public void onRuntimeAvailable(@NotNull IJeiRuntime jeiRuntime) {
         JeiHelper.jeiRuntime = jeiRuntime;
+        ShopJeiClient.runtimeAvailable(jeiRuntime);
     }
 
     @Override
     public void onRuntimeUnavailable() {
         JeiHelper.jeiRuntime = null;
+        ShopJeiClient.runtimeUnavailable();
     }
 
     public static Optional<IJeiRuntime> getJeiRuntime() {

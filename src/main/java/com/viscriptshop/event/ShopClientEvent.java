@@ -5,18 +5,26 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.compat.JeiHelper;
+import com.viscriptshop.compat.ShopJeiBridge;
 import com.viscriptshop.gui.ShopUI;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.Nullable;
 
 @EventBusSubscriber(modid = ViscriptShop.MOD_ID, value = Dist.CLIENT)
 public class ShopClientEvent {
     @SubscribeEvent
+    public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        ShopJeiBridge.clear();
+    }
+
+    @SubscribeEvent
     public static void shopUiOpening(ScreenEvent.Opening event) {
+        ShopJeiBridge.onScreenOpening(event.getNewScreen());
         if (event.getScreen() instanceof ModularUIScreen screen && screen.modularUI.ui.rootElement instanceof ShopUI shopUI) {
             NeoForge.EVENT_BUS.post(new com.viscriptshop.event.neoforge.ShopClientEvent.Opening(shopUI));
         }
