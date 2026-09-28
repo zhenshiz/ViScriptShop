@@ -29,12 +29,6 @@ type = "required"
 ordering = "NONE"
 side = "BOTH"
 [[dependencies."${mod_id}"]]
-modId = "viscript_lib"
-type = "required"
-versionRange = "[${viscriptlib_version},)"
-ordering = "AFTER"
-side = "BOTH"
-[[dependencies."${mod_id}"]]
 modId = "beyonddimensions"
 type = "optional"
 versionRange = "[0.7.0,)"
