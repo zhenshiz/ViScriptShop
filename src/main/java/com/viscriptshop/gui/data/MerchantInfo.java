@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.configurator.ui.Configurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.ConfiguratorGroup;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
@@ -61,6 +62,9 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
     private String id = UUID.randomUUID().toString();
     @Configurable(name = "viscript_shop.data.merchant.itemResult", key = "itemResult", subConfigurable = true)
     private MerchantItemInfo itemResultInfo = new MerchantItemInfo();
+    // 仅货币商店出售时用于匹配玩家交付的物品；买入和以物换物的产出保持原样。
+    @Configurable(name = "viscript_shop.data.merchant.item.matchRule", subConfigurable = true)
+    private ItemMatchRule itemResultMatchRule = new ItemMatchRule();
     @Configurable(name = "viscript_shop.data.merchant.stock", tips = "viscript_shop.data.merchant.stock.tips")
     @ConfigNumber(range = {-1, Integer.MAX_VALUE}, wheel = 1)
     private int stock = -1;
@@ -144,6 +148,13 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
         }
         ConfiguratorFieldHelper.addField(group, this, "itemResultInfo")
                 .addClass("merchant-result-item-info");
+        if (configuratorShopType == CategoryInfo.ShopType.CURRENCY) {
+            getItemResultMatchRule();
+            var sellMatchRule = ConfiguratorFieldHelper.addField(group, this, "itemResultMatchRule")
+                    .setId("merchant_sell_match_rule");
+            sellMatchRule.setDisplay(tradeType == TradeType.SELL);
+            group.addEventListener(UIEvents.TICK, event -> sellMatchRule.setDisplay(tradeType == TradeType.SELL));
+        }
         ConfiguratorFieldHelper.addField(group, this, "xp").setId("merchant_xp");
         ConfiguratorFieldHelper.addField(group, this, "commands").setId("merchant_commands");
 
@@ -298,6 +309,18 @@ public class MerchantInfo implements IConfigurable, IPersistedSerializable, Stag
             itemResultInfo = new MerchantItemInfo();
         }
         return itemResultInfo;
+    }
+
+    /**
+     * 获取货币商店出售物品时使用的组件匹配规则。
+     *
+     * @return 非 {@code null} 的规则；旧商品默认比较全部组件
+     */
+    public ItemMatchRule getItemResultMatchRule() {
+        if (itemResultMatchRule == null) {
+            itemResultMatchRule = new ItemMatchRule();
+        }
+        return itemResultMatchRule;
     }
 
     /**

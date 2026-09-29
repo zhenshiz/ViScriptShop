@@ -118,7 +118,7 @@ public final class PromotionEngine {
                         cost.addMoney(adjustment.finalAmount(), quantity);
                         gain.addItem(merchant.getSerializedItemResult(), quantity);
                     } else {
-                        addDiscountedItemCost(cost, merchant.getSerializedItemResult(), null,
+                        addDiscountedItemCost(cost, merchant.getSerializedItemResult(), merchant.getItemResultMatchRule(),
                                 quantity, PromotionRule.Target.SELL_ITEM_COST, context, appliedRules);
                         PriceAdjustment adjustment = calculateMoneyPrice(
                                 context, PromotionRule.Target.MONEY_REWARD, merchant.getMoney(), appliedRules

@@ -32,7 +32,7 @@ public final class ShopJeiCatalog {
         for (String location : ShopCommand.getServerShopFiles().stream().sorted().toList()) {
             try {
                 var shop = currentShop(location);
-                if (shop == null) continue;
+                if (shop == null || !shop.isQuickOpening()) continue;
                 boolean hideLocked = shop.getLockedMerchantVisibility() == ShopInfo.LockedMerchantVisibility.HIDDEN;
                 for (var category : shop.getCategoryInfos()) {
                     if (hideLocked && !category.canAccess(flags)) continue;
@@ -82,7 +82,7 @@ public final class ShopJeiCatalog {
     }
 
     private static boolean containsAccessibleTrade(ShopInfo shop, List<String> flags, String categoryId, String merchantId) {
-        return shop != null && shop.getCategoryInfos().stream()
+        return shop != null && shop.isQuickOpening() && shop.getCategoryInfos().stream()
                 .filter(category -> category.getId().equals(categoryId) && category.canAccess(flags))
                 .flatMap(category -> category.getMerchants().stream())
                 .anyMatch(merchant -> merchant.getId().equals(merchantId) && merchant.canAccess(flags));

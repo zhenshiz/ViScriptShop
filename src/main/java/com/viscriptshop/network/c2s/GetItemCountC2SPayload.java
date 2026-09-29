@@ -51,7 +51,7 @@ public class GetItemCountC2SPayload {
                     resources.addItemEntry(merchantInfo.getSerializedItemA(), 1, merchantInfo.getItemAMatchRule());
                     resources.addItemEntry(merchantInfo.getSerializedItemB(), 1, merchantInfo.getItemBMatchRule());
                 } else if (merchantInfo.getTradeType() == MerchantInfo.TradeType.SELL) {
-                    resources.addItemEntry(merchantInfo.getSerializedItemResult(), 1, null);
+                    resources.addItemEntry(merchantInfo.getSerializedItemResult(), 1, merchantInfo.getItemResultMatchRule());
                 }
             });
         });
