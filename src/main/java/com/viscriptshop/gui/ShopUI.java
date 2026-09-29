@@ -567,7 +567,11 @@ public class ShopUI extends UIElement {
             //搜索筛选 物品筛选和序号筛选
             if (this.searchMode) {
                 if (!this.searchItem.isEmpty()) {
-                    boolean isMatch = ItemStack.isSameItemSameTags(merchantInfo.getItemResult(), this.searchItem) ||
+                    boolean resultMatches = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY
+                            && merchantInfo.getTradeType() == MerchantInfo.TradeType.SELL
+                            ? merchantInfo.getItemResultMatchRule().matches(this.searchItem, merchantInfo.getItemResult())
+                            : ItemStack.isSameItemSameTags(merchantInfo.getItemResult(), this.searchItem);
+                    boolean isMatch = resultMatches ||
                             merchantInfo.getItemAMatchRule().matches(merchantInfo.getItemA(), this.searchItem) ||
                             merchantInfo.getItemBMatchRule().matches(merchantInfo.getItemB(), this.searchItem);
                     if (!isMatch) {

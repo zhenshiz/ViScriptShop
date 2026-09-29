@@ -25,5 +25,7 @@ public final class ShopRegisterAccessorEvent {
         event.register(PromotionConditionEntry.class, PromotionConditionEntry::new);
         event.register(PromotionRule.class, PromotionRule::new);
         event.register(ShopInfo.class, ShopInfo::new);
+        event.register(ShopDisplayEntry.class, ShopDisplayEntry::new);
+        event.register(ShopDisplayBatch.class, ShopDisplayBatch::new);
     }
 }

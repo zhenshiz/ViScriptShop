@@ -447,7 +447,7 @@ public class AggregatedResources implements IPersistedSerializable {
                             case BUY -> // 购买物品：成本是货币
                                     cost.addMoney(merchant.getMoney(), count);
                             case SELL -> // 出售物品：成本是玩家出售的物品 (itemResult)
-                                    cost.addItemEntry(merchant.getSerializedItemResult(), count, null);
+                                    cost.addItemEntry(merchant.getSerializedItemResult(), count, merchant.getItemResultMatchRule());
                         }
                     }
                 }
