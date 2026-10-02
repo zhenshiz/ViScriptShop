@@ -39,6 +39,8 @@
   "viscript_shop.configuration.shopUiTheme": "商店界面主题",
   "viscript_shop.configuration.shopUiTheme.gray_cat_workshop": "灰猫工坊",
   "viscript_shop.configuration.shopUiTheme.glass_dark": "深色玻璃",
+  "viscript_shop.configuration.shopContentScale": "商店内容缩放",
+  "viscript_shop.configuration.shopContentScale.tooltip": "独立于原版 GUI 缩放。减小可显示更多商品行，增大可放大商品内容。顶栏高度及其文字、图标大小保持不变。列表模式下，中间栏随卡片缩放，商店整体宽度随之调整并保持居中；高度和左右两栏宽度保持不变。新默认 1.0 对应原来的 1.25。范围 0.5～1.5，大倍率自动适配可用宽度，重新打开商店后生效。适用于所有商店主题。",
   "viscript_shop.data.shop.name": "商店名",
   "viscript_shop.data.shop.name.tip": "如需动态商店名的话此处不要填，请通过指令设置商店名",
   "viscript_shop.data.shop.isQuickOpening": "是否允许快捷打开",
@@ -302,5 +304,6 @@
   "viscript_shop.jei.current_price": "当前玩家的单次交易价格；重新打开 JEI 时更新。",
   "viscript_shop.jei.stage.unlocked": "已解锁",
   "viscript_shop.jei.stage.locked": "尚未解锁",
-  "viscript_shop.jei.stage.group": "第 %s 组：%s [%s]"
+  "viscript_shop.jei.stage.group": "第 %s 组：%s [%s]",
+  "viscript_shop.message.buy.invalid_request": "购买清单无效，请重新打开商店后重试。"
 }

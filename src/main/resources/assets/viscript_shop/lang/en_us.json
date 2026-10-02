@@ -39,6 +39,8 @@
   "viscript_shop.configuration.shopUiTheme": "Shop UI Theme",
   "viscript_shop.configuration.shopUiTheme.gray_cat_workshop": "Gray Cat Workshop",
   "viscript_shop.configuration.shopUiTheme.glass_dark": "Dark Glass",
+  "viscript_shop.configuration.shopContentScale": "Shop Content Scale",
+  "viscript_shop.configuration.shopContentScale.tooltip": "Independent of Minecraft GUI scale. Lower values show more product rows; higher values enlarge product content. The top bar height and its text and icon sizes stay unchanged. In list mode, the middle column scales with the cards and the shop adjusts its total width while staying centered. Height and side column widths remain unchanged. The new 1.0 matches the previous 1.25. Range: 0.5–1.5; large values are limited to fit the window. Reopen the shop to apply. Applies to all shop themes.",
   "viscript_shop.data.shop.name": "Shop Name",
   "viscript_shop.data.shop.name.tip": "Leave blank if you want a dynamic shop name. Use commands to set the shop name.",
   "viscript_shop.data.shop.isQuickOpening": "Allow Quick Opening",
@@ -302,5 +304,6 @@
   "viscript_shop.jei.current_price": "Your current price per trade. Updates when JEI is opened.",
   "viscript_shop.jei.stage.unlocked": "Unlocked",
   "viscript_shop.jei.stage.locked": "Locked",
-  "viscript_shop.jei.stage.group": "Group %s: %s [%s]"
+  "viscript_shop.jei.stage.group": "Group %s: %s [%s]",
+  "viscript_shop.message.buy.invalid_request": "Invalid purchase list. Reopen the shop and try again."
 }

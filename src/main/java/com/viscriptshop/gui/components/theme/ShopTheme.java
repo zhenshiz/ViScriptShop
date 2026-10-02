@@ -111,26 +111,26 @@ public record ShopTheme(
                 47,
                 76,
                 7,
-                sprite("gray_cat_workshop", "shell.png"),
+                sprite("gray_cat_workshop", "background.png").setBorder(1),
                 IGuiTexture.EMPTY,
                 IGuiTexture.EMPTY,
                 IGuiTexture.EMPTY,
+                grayCatPanel("categories", 0, 0, 114, 25).setBorder(6, 3, 6, 7),
+                grayCatPanel("categories", 0, 25, 114, 240).setBorder(8, 12, 8, 20),
+                sprite("gray_cat_workshop", "panels/merchant_header.png").setBorder(2),
+                grayCatPanel("merchants", 0, 28, 273, 237).setBorder(2),
+                grayCatPanel("summary", 0, 0, 125, 25).setBorder(10, 4, 10, 7),
                 IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
+                sprite("gray_cat_workshop", "panels/shopping_cart.png").setBorder(6),
+                sprite("gray_cat_workshop", "panels/consumption.png").setBorder(6),
                 sprite("gray_cat_workshop", "controls/secondary_button.png").setBorder(2),
+                sprite("gray_cat_workshop", "icons/search.png"),
                 IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
-                sprite("gray_cat_workshop", "controls/input.png"),
-                sprite("gray_cat_workshop", "controls/toggle.png"),
-                sprite("gray_cat_workshop", "controls/toggle.png"),
-                IGuiTexture.EMPTY,
-                IGuiTexture.EMPTY,
+                sprite("gray_cat_workshop", "controls/input.png").setBorder(2),
+                sprite("gray_cat_workshop", "controls/toggle.png").setBorder(2),
+                sprite("gray_cat_workshop", "controls/toggle.png").setBorder(2),
+                sprite("gray_cat_workshop", "controls/balance_icon.png").setBorder(2),
+                sprite("gray_cat_workshop", "controls/input.png").setBorder(2),
                 sprite("gray_cat_workshop", "panels/merchant_row.png"),
                 sprite("gray_cat_workshop", "panels/merchant_grid.png"),
                 sprite("gray_cat_workshop", "controls/primary_button.png"),
@@ -221,6 +221,10 @@ public record ShopTheme(
                 sprite("glass_dark", "scroll/scroll_bar_hover.png"),
                 sprite("glass_dark", "scroll/scroll_bar_hold.png")
         );
+    }
+
+    private static SpriteTexture grayCatPanel(String panel, int x, int y, int width, int height) {
+        return sprite("gray_cat_workshop", "panels/" + panel + ".png").setSprite(x, y, width, height);
     }
 
     private static SpriteTexture sprite(String themeName, String fileName) {

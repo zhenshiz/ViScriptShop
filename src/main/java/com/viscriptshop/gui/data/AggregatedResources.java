@@ -248,26 +248,6 @@ public class AggregatedResources implements IPersistedSerializable {
         return getPurchaseEntries().isEmpty();
     }
 
-    /**
-     * 创建只包含商品 ID 和购买倍数的最小购买请求。
-     *
-     * <p>物品成本和收益由服务端根据商店文件重新计算，客户端不再重复发送可被篡改的
-     * 物品汇总数据。
-     *
-     * @return 独立的购买请求
-     */
-    public AggregatedResources toPurchaseRequest() {
-        AggregatedResources request = new AggregatedResources();
-        for (PurchaseEntry entry : getPurchaseEntries()) {
-            request.getPurchaseEntries().add(new PurchaseEntry(
-                    entry.getCategoryId(),
-                    entry.getMerchantId(),
-                    entry.getBuyCount()
-            ));
-        }
-        return request;
-    }
-
     public long getTotalItemCount() {
         long total = 0L;
         for (ItemEntry item : getResourceItems()) {

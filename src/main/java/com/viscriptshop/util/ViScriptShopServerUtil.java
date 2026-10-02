@@ -69,6 +69,12 @@ public class ViScriptShopServerUtil {
 
     @Info("服务端打开商店（带分类和商品参数）")
     public static void serverOpenShop(ServerPlayer player, String shopLocation, String categoryId, String merchantId) {
+        if (player == null) return;
+        try {
+            shopLocation = ShopHelper.normalizeShopLocation(shopLocation);
+        } catch (IllegalArgumentException e) {
+            return;
+        }
         ShopInfo shopInfo = getOrInitSavedShopInfo(shopLocation);
         if (shopInfo == null) {
             ViscriptShop.LOGGER.error("shop location {} not found", shopLocation);
@@ -82,6 +88,7 @@ public class ViScriptShopServerUtil {
 
     @Info("重置商店信息")
     public static void reloadOpenShop(String shop) {
+        shop = ShopHelper.normalizeShopLocation(shop);
         ShopSavedData shopSavedData = ViscriptShop.getShopSavedData();
         shopSavedData.resetShopInfo(shop);
         ShopHelper.clearCache();
@@ -90,6 +97,7 @@ public class ViScriptShopServerUtil {
     @Nullable
     @Info("仅从savedData获取商店信息，不会读取服务端文件")
     public static ShopInfo getSavedShopInfo(String shop) {
+        shop = ShopHelper.normalizeShopLocation(shop);
         return ViscriptShop.getShopSavedData().getShopInfo(shop);
     }
 
@@ -104,6 +112,7 @@ public class ViScriptShopServerUtil {
     @Nullable
     @Info("获取可写的存档级商店信息，如果savedData中不存在则从服务端文件加载并写入savedData")
     public static ShopInfo getOrInitSavedShopInfo(String shop) {
+        shop = ShopHelper.normalizeShopLocation(shop);
         ShopSavedData shopSavedData = ViscriptShop.getShopSavedData();
         ShopInfo shopInfo = shopSavedData.getShopInfo(shop);
         if (shopInfo == null) {
@@ -117,6 +126,7 @@ public class ViScriptShopServerUtil {
 
     @Info("设置商品信息")
     public static void setShopInfo(String shop, ShopInfo shopInfo) {
+        shop = ShopHelper.normalizeShopLocation(shop);
         ShopSavedData shopSavedData = ViscriptShop.getShopSavedData();
         shopSavedData.setShopInfo(shop, shopInfo);
     }

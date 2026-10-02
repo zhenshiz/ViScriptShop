@@ -33,7 +33,7 @@ public class ViScriptShopClientUtil {
             ViscriptShop.LOGGER.error("不合规的商店信息：商店分类栏为空");
             return;
         }
-        ModularUI modularUI = new ModularUI(UI.of(shopUI, ShopUI::getAutoGuiScaledSize));
+        ModularUI modularUI = new ModularUI(UI.of(shopUI, ShopUI::getShopLayoutSize));
         minecraft.setScreen(new ModularUIScreen(modularUI, Component.empty()));
     }
 

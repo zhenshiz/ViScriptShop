@@ -12,17 +12,26 @@ import com.viscriptshop.gui.data.ShopInfo;
 import com.viscriptshop.network.s2c.S2CPayload;
 import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.promotion.condition.PlayerItemCondition;
+import com.viscriptshop.util.ShopHelper;
+import com.viscriptshop.util.ViScriptShopServerUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
 public class GetItemCountC2SPayload {
-    public static final String GET_ITEM_COUNT = C2SPayload.MOD_ID + "get_item_count";
+    public static final String GET_ITEM_COUNT = C2SPayload.MOD_ID + "get_item_count_v2";
 
     @RPCPacket(GET_ITEM_COUNT)
-    public static void getItemCount(RPCSender sender, ShopInfo shopInfo) {
+    public static void getItemCount(RPCSender sender, String shopLocation) {
+        if (sender.isServer()) return;
         ServerPlayer player = sender.asPlayer();
         if (player == null) return;
-
+        ShopInfo shopInfo;
+        try {
+            shopInfo = ViScriptShopServerUtil.getShopInfo(ShopHelper.normalizeShopLocation(shopLocation));
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        if (shopInfo == null) return;
         sendItemCountSnapshot(player, shopInfo);
     }
 

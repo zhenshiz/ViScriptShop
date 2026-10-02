@@ -33,11 +33,13 @@ import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.MerchantItemInfo;
 import com.viscriptshop.gui.data.ShopInfo;
-import com.viscriptshop.gui.layout.GlassDarkShopUiLayout;
+import com.viscriptshop.gui.layout.ShopColumnsLayout;
 import com.viscriptshop.gui.layout.GrayCatShopUiLayout;
 import com.viscriptshop.gui.layout.ShopUiElements;
 import com.viscriptshop.gui.layout.ShopUiLayout;
+import com.viscriptshop.gui.layout.ShopUiScale;
 import com.viscriptshop.network.c2s.BuyMerchantPayload;
+import com.viscriptshop.network.c2s.PurchaseRequest;
 import com.viscriptshop.network.c2s.C2SPayload;
 import com.viscriptshop.network.c2s.GetItemCountC2SPayload;
 import com.viscriptshop.promotion.PromotionEngine;
@@ -98,6 +100,7 @@ public class ShopUI extends UIElement {
     private static final float LIST_COUNT_WIDTH = 30;
     private static final float LIST_CONTROL_GAP = 2;
     private static final float LIST_CONTROL_WIDTH = LIST_BUTTON_SIZE * 2 + LIST_COUNT_WIDTH + LIST_CONTROL_GAP * 2;
+    private static final float LIST_CARD_HEIGHT = 28;
     private static final float LOCKED_CATEGORY_OPACITY = 0.7f;
 
     // 数据
@@ -171,7 +174,7 @@ public class ShopUI extends UIElement {
             }
 
             if (!isCategoryLocked(selectedCategory)) {
-                RPCPacketDistributor.rpcToServer(GetItemCountC2SPayload.GET_ITEM_COUNT, currentShopInfo);
+                RPCPacketDistributor.rpcToServer(GetItemCountC2SPayload.GET_ITEM_COUNT, shopLocation);
             }
         }
         this.layout(layout -> {
@@ -185,8 +188,8 @@ public class ShopUI extends UIElement {
         this.searchComponent = elements.itemSearch();
         this.currencyLayoutToggle = elements.currencyLayoutToggle();
         this.shopUiLayout = theme.isGrayCatWorkshop()
-                ? new GrayCatShopUiLayout(elements.itemSearch())
-                : GlassDarkShopUiLayout.INSTANCE;
+                ? new GrayCatShopUiLayout()
+                : ShopColumnsLayout.INSTANCE;
         this.shopUiShell = shopUiLayout.build(theme, elements);
         this.addChild(shopUiShell);
 
@@ -333,7 +336,7 @@ public class ShopUI extends UIElement {
         });
 
         UIElement playerHead = new UIElement().setId("shop_player_head").addChild(
-                new PlayerHeadElement().layout(layout -> layout.marginRight(5))
+                new PlayerHeadElement().setId("shop_player_head_icon").layout(layout -> layout.marginRight(5))
         );
 
         ShopButton clearButton = ShopButton.other(theme);
@@ -416,7 +419,7 @@ public class ShopUI extends UIElement {
         RPCPacketDistributor.rpcToServer(
                 BuyMerchantPayload.BUY_MERCHANT,
                 this.shopLocation,
-                gainSummary.toPurchaseRequest(),
+                new PurchaseRequest(gainSummary.getPurchaseEntries()),
                 selectedOutputTarget.name()
         );
     }
@@ -461,36 +464,30 @@ public class ShopUI extends UIElement {
     @Override
     public void initScreen(int screenWidth, int screenHeight) {
         super.initScreen(screenWidth, screenHeight);
-        Size layoutSize = getAutoGuiScaledSize(Size.of(screenWidth, screenHeight));
-        shopUiLayout.initScreen(shopUiShell, layoutSize);
-        applyAutoGuiScaleTransform();
-    }
-
-    public static Size getAutoGuiScaledSize(Size screenSize) {
-        float scale = getAutoGuiScaleFactor();
-        if (scale <= 0f) return screenSize;
-
-        return Size.of(
-                Math.max(1, Math.round(screenSize.getWidth() / scale)),
-                Math.max(1, Math.round(screenSize.getHeight() / scale))
-        );
-    }
-
-    private void applyAutoGuiScaleTransform() {
-        float scale = getAutoGuiScaleFactor();
-        // 让固定尺寸控件在任意 GUI Scale 下都保持 Auto 缩放时的视觉大小。
+        shopUiLayout.initScreen(shopUiShell, getShopLayoutSize(Size.of(screenWidth, screenHeight)), isCurrencyGridActive());
+        float scale = getShopPixelScale() / (float) minecraft.getWindow().getGuiScale();
         transform(transform -> transform.pivot(0.5f, 0.5f).scale(scale));
     }
 
-    private static float getAutoGuiScaleFactor() {
-        Minecraft minecraft = Minecraft.getInstance();
+    /**
+     * 获取独立于原版 GUI 缩放的商店布局空间，保持窗口宽高比。
+     *
+     * @param screenSize 原版 GUI 空间尺寸，窗口没有可用像素时用作回退
+     * @return 随窗口比例和商店内容倍率调整的逻辑尺寸
+     */
+    public static Size getShopLayoutSize(Size screenSize) {
+        var window = Minecraft.getInstance().getWindow();
+        if (window.getWidth() <= 0 || window.getHeight() <= 0) return screenSize;
+        float scale = getShopPixelScale();
+        return Size.of(Math.max(1, Math.round(window.getWidth() / scale)),
+                Math.max(1, Math.round(window.getHeight() / scale)));
+    }
 
-        var window = minecraft.getWindow();
-        double currentScale = window.getGuiScale();
-        if (currentScale <= 0d) return 1f;
-
-        int autoScale = window.calculateScale(0, minecraft.isEnforceUnicode());
-        return Math.max(1f, (float) (autoScale / currentScale));
+    private static float getShopPixelScale() {
+        var window = Minecraft.getInstance().getWindow();
+        if (window.getWidth() <= 0 || window.getHeight() <= 0) return (float) window.getGuiScale();
+        // 先按实际像素适配，再抵消原版 GUI 缩放；缩小内容时同时扩大布局空间。
+        return ShopUiScale.basePixelScale() * ShopUiScale.contentScale();
     }
 
     public void reloadCategoryList() {
@@ -513,7 +510,7 @@ public class ShopUI extends UIElement {
                         }
                         setSelectedCategory(value);
                         if (minecraft.player != null) {
-                            RPCPacketDistributor.rpcToServer(GetItemCountC2SPayload.GET_ITEM_COUNT, currentShopInfo);
+                            RPCPacketDistributor.rpcToServer(GetItemCountC2SPayload.GET_ITEM_COUNT, shopLocation);
                         }
                         reloadMerchants();
                     },
@@ -626,6 +623,9 @@ public class ShopUI extends UIElement {
     }
 
     private void configureMerchantsContainerLayout() {
+        var window = minecraft.getWindow();
+        shopUiLayout.initScreen(shopUiShell,
+                getShopLayoutSize(Size.of(window.getGuiScaledWidth(), window.getGuiScaledHeight())), isCurrencyGridActive());
         if (isCurrencyGridActive()) {
             merchantsView.viewContainer.layout(layout -> {
                 layout.display(TaffyDisplay.GRID);
@@ -642,6 +642,7 @@ public class ShopUI extends UIElement {
                 layout.display(TaffyDisplay.FLEX);
                 layout.flexDirection(FlexDirection.COLUMN);
                 layout.wrap(FlexWrap.NO_WRAP);
+                layout.alignItems(AlignItems.CENTER);
                 layout.gapAll(5);
             });
             currencyGridColumns = -1;
@@ -840,9 +841,11 @@ public class ShopUI extends UIElement {
     public UIElement createMerchant(MerchantInfo merchantInfo, int index) {
         boolean currency = selectedCategory.getShopType() == CategoryInfo.ShopType.CURRENCY;
         UIElement merchant = new UIElement().setId("shop_merchant_list_" + index).layout(layout -> {
-            layout.widthPercent(100);
-            layout.height(theme.merchantRowHeight());
-            layout.gapAll(6);
+            layout.width(ShopColumnsLayout.LIST_CARD_WIDTH);
+            layout.maxWidthPercent(100);
+            layout.height(Math.max(LIST_CARD_HEIGHT, theme.merchantRowHeight()));
+            layout.flexShrink(0);
+            layout.gapAll(2);
             layout.flexDirection(FlexDirection.ROW);
             layout.paddingHorizontal(4);
             layout.alignItems(AlignItems.CENTER);
@@ -854,9 +857,11 @@ public class ShopUI extends UIElement {
             textStyle.textAlignHorizontal(Horizontal.LEFT).textAlignVertical(Vertical.CENTER);
             textStyle.fontSize(6);
         }).layout(layout -> {
-            layout.width(12);
+            layout.width(10);
+            layout.flexShrink(0);
             layout.heightPercent(100);
         });
+        id.setId("shop_merchant_index_" + index);
 
         UIElement uiElement = new UIElement().layout(layout -> {
             layout.widthPercent(20);
@@ -879,23 +884,19 @@ public class ShopUI extends UIElement {
                 "shop_merchant_list_" + index);
         // 赠品独立于交易方向，始终占据数量操作区左侧的一列，缺省时也保留空位。
         UIElement giftSlot = new UIElement().setId("shop_merchant_list_gift_slot_" + index).layout(layout -> {
-            layout.width(MerchantItemAmountDisplay.COUNT_WIDTH);
+            layout.width(MerchantItemAmountDisplay.COUNT_WIDTH + 4);
             layout.height(16);
             layout.flexShrink(0);
             layout.alignItems(AlignItems.CENTER);
             layout.justifyContent(AlignContent.CENTER);
         });
         gift.ifPresent(giftSlot::addChild);
-        merchant.getLayout().gapAll(currency ? 2 : 1);
-        id.getLayout().width(6);
-        id.getLayout().flexShrink(0);
 
-        // 将剩余宽度留在序号和交易内容之间，输出、赠品和输入区始终紧邻。
+        // 序号后只保留固定间距；卡片整体随内容倍率缩放，不把空白堆到第一件物品前。
         UIElement leadingSpace = new UIElement().setId("shop_merchant_leading_space_" + index).layout(layout -> {
-            layout.width(6);
-            layout.minWidth(6);
+            layout.width(4);
+            layout.flexShrink(0);
             layout.height(1);
-            layout.flexGrow(1);
         });
         merchant.addChildren(id, leadingSpace);
 
@@ -930,10 +931,6 @@ public class ShopUI extends UIElement {
                         itemBPrice,
                         "itemB" + index
                 );
-                // 相对位移只收近两个物品，不推动第二个物品和箭头。
-                itemASlot.getLayout().left(2);
-                uiElement.getLayout().widthPercent(34);
-                uiElement.getLayout().marginLeft(-2);
                 uiElement.getLayout().gapAll(2);
                 uiElement.getLayout().justifyContent(AlignContent.FLEX_START);
                 uiElement.setId("shop_merchant_list_first_" + index);
@@ -1066,7 +1063,11 @@ public class ShopUI extends UIElement {
             actionArea.addChildren(buttonHolder[0], countConfigurator, buttonHolder[1]);
         }
 
-        merchant.addChildren(giftSlot, actionArea);
+        UIElement actionSpacer = new UIElement().layout(layout -> {
+            layout.minWidth(0);
+            layout.flex(1);
+        });
+        merchant.addChildren(giftSlot, actionSpacer, actionArea);
 
         return merchant;
     }
@@ -1600,6 +1601,8 @@ public class ShopUI extends UIElement {
     private UIElement createItemInfoBox() {
         return new UIElement().layout(layout -> {
             layout.widthPercent(50);
+            layout.minWidth(30);
+            layout.flexShrink(0);
             layout.height(20);
             layout.justifyContent(AlignContent.FLEX_START);
             layout.alignItems(AlignItems.CENTER);
