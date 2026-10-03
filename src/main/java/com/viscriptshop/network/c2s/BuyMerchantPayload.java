@@ -6,6 +6,7 @@ import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.lowdragmc.lowdraglib2.syncdata.rpc.RPCSender;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.viscript_lib.util.item.ItemOutputTargets;
+import com.viscript_lib.util.item.ItemUtil;
 import com.viscriptshop.Config;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.event.neoforge.ShopServerEvent;
@@ -17,6 +18,7 @@ import com.viscriptshop.promotion.ConditionItemPayment;
 import com.viscriptshop.promotion.PromotionEngine;
 import com.viscriptshop.promotion.TradeQuote;
 import com.viscriptshop.util.MoneyUtil;
+import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -25,16 +27,43 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class BuyMerchantPayload {
     public static final String BUY_MERCHANT = C2SPayload.MOD_ID + "buy_merchant";
 
+    /**
+     * 根据商品清单结算交易，成本、收益和指令只取自服务端商店。
+     *
+     * <p>清单中每个商品只能出现一次，购买数量必须为正数；任意无效条目都会拒绝整笔交易。
+     *
+     * @param sender RPC 发送者，交易玩家由连接身份确定
+     * @param shopLocation 商店相对路径
+     * @param purchaseRequest 仅包含分类 ID、商品 ID 和购买数量的请求
+     * @param outputTargetId 物品输出位置标识
+     */
     @RPCPacket(BUY_MERCHANT)
-    public static void buyMerchant(RPCSender sender, String shopLocation, AggregatedResources request,
+    public static void buyMerchant(RPCSender sender, String shopLocation, PurchaseRequest purchaseRequest,
                                    String outputTargetId) {
+        if (sender.isServer()) return;
         ServerPlayer player = sender.asPlayer();
         if (player == null) return;
+        var purchases = purchaseRequest == null ? null : purchaseRequest.getPurchases();
+        try {
+            shopLocation = ShopHelper.normalizeShopLocation(shopLocation);
+        } catch (IllegalArgumentException e) {
+            rejectInvalidRequest(player);
+            return;
+        }
         ShopInfo shopInfo = ViScriptShopServerUtil.getShopInfo(shopLocation);
-        if (shopInfo == null) return;
+        if (shopInfo == null || !isValidPurchaseList(shopInfo, purchases)) {
+            rejectInvalidRequest(player);
+            return;
+        }
+        AggregatedResources request = new AggregatedResources();
+        request.setPurchaseEntries(purchases);
         TradeQuote quote = PromotionEngine.quote(player, shopLocation, shopInfo, request);
         AggregatedResources cost = quote.cost();
         AggregatedResources gain = quote.gain();
@@ -71,7 +100,10 @@ public class BuyMerchantPayload {
                     .filter(c -> c.getId().equals(purchaseEntry.getCategoryId()))
                     .findFirst()
                     .orElse(null);
-            if (categoryInfo == null) continue;
+            if (categoryInfo == null) {
+                rejectInvalidRequest(player);
+                return;
+            }
 
             if (!categoryInfo.canAccess(playerStageFlags)) {
                 RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
@@ -84,7 +116,10 @@ public class BuyMerchantPayload {
                     .filter(m -> m.getId().equals(purchaseEntry.getMerchantId()))
                     .findFirst()
                     .orElse(null);
-            if (merchantInfo == null) continue;
+            if (merchantInfo == null) {
+                rejectInvalidRequest(player);
+                return;
+            }
 
             int stock = ViScriptShopServerUtil.getEffectiveMerchantStock(player, shopLocation, purchaseEntry.getCategoryId(), merchantInfo);
             int buyCount = purchaseEntry.getBuyCount();
@@ -157,6 +192,20 @@ public class BuyMerchantPayload {
             return;
         }
 
+        // 组件匹配规则可能重叠；实际扣除失败时不能继续发放物品或执行指令。
+        for (AggregatedResources.ItemEntry itemEntry : regularItemCosts) {
+            var rule = itemEntry.getMatchRule();
+            long remaining = ItemUtil.removeItemForPlayer(player, itemEntry.getItemStack(), itemEntry.getCount(),
+                    rule.resolvedCompareMode(), rule.resolvedComponents());
+            if (remaining > 0) {
+                RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
+                        Component.translatable("viscript_shop.message.notEnoughItem",
+                                itemEntry.getItemStack().getHoverName().getString()));
+                MinecraftForge.EVENT_BUS.post(new ShopServerEvent.BuyFail(player, shopInfo, cost, gain));
+                return;
+            }
+        }
+
         // 扣减库存
         for (var purchaseEntry : gain.getPurchaseEntries()) {
             var categoryInfo = shopInfo.getCategoryInfos().stream()
@@ -181,11 +230,6 @@ public class BuyMerchantPayload {
             if (shopSavedData != null) {
                 shopSavedData.setShopInfo(shopLocation, shopInfo);
             }
-        }
-
-        // 删除物品
-        for (AggregatedResources.ItemEntry itemEntry : regularItemCosts) {
-            itemEntry.removeItemForPlayer(player);
         }
 
         // 同一购物车的货币收入与支出按净额一次性结算，物品仍分别验证和处理。
@@ -230,7 +274,7 @@ public class BuyMerchantPayload {
      * @param player 完成交易的服务端玩家
      * @param value 一条完整指令
      */
-    public static void executeCommand(ServerPlayer player, String value) {
+    private static void executeCommand(ServerPlayer player, String value) {
         String command = value == null ? "" : value.trim();
         if (!command.isBlank()) {
             MinecraftServer server = Platform.getMinecraftServer();
@@ -244,6 +288,31 @@ public class BuyMerchantPayload {
                 ViscriptShop.LOGGER.error("Error executing command on server: {}", command, e);
             }
         }
+    }
+
+    private static boolean isValidPurchaseList(ShopInfo shopInfo, List<AggregatedResources.PurchaseEntry> purchases) {
+        if (purchases == null || purchases.isEmpty()) return false;
+        Set<List<String>> requested = new HashSet<>();
+        for (var entry : purchases) {
+            if (entry == null || entry.getCategoryId() == null || entry.getCategoryId().isBlank()
+                    || entry.getMerchantId() == null || entry.getMerchantId().isBlank()
+                    || entry.getBuyCount() <= 0
+                    || !requested.add(List.of(entry.getCategoryId(), entry.getMerchantId()))) {
+                return false;
+            }
+            var categories = shopInfo.getCategoryInfos().stream()
+                    .filter(category -> entry.getCategoryId().equals(category.getId())).toList();
+            if (categories.size() != 1 || categories.get(0).getMerchants().stream()
+                    .filter(merchant -> entry.getMerchantId().equals(merchant.getId())).count() != 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void rejectInvalidRequest(ServerPlayer player) {
+        RPCPacketDistributor.rpcToPlayer(player, S2CPayload.SEND_MESSAGE, Message.Type.ERROR,
+                Component.translatable("viscript_shop.message.buy.invalid_request"));
     }
 
 }

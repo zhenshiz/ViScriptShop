@@ -32,6 +32,9 @@ public class Config {
     // 商店 UI 的客户端主题
     public static ForgeConfigSpec.EnumValue<ShopUiTheme> shopUiTheme;
 
+    // 商店内容倍率，范围 0.5～1.5；列表高度不变，整体宽度随中间栏调整。
+    public static ForgeConfigSpec.DoubleValue shopContentScale;
+
     static {
         ForgeConfigSpec.Builder CONFIG_BUILDER = new ForgeConfigSpec.Builder();
         CONFIG_BUILDER.push("config");
@@ -52,6 +55,10 @@ public class Config {
         shopUiTheme = CLIENT_CONFIG_BUILDER
                 .translation("viscript_shop.configuration.shopUiTheme")
                 .defineEnum("shopUiTheme", ShopUiTheme.GLASS_DARK);
+        shopContentScale = CLIENT_CONFIG_BUILDER
+                .comment("商店内容缩放；减小可容纳更多内容。独立于原版 GUI 缩放，重新打开商店后生效。")
+                .translation("viscript_shop.configuration.shopContentScale")
+                .defineInRange("shopContentScale", 1.0, 0.5, 1.5);
         CLIENT_CONFIG_BUILDER.pop();
         CLIENT_CONFIG_SPEC = CLIENT_CONFIG_BUILDER.build();
     }

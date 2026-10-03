@@ -38,6 +38,7 @@ public class S2CPayload {
 
     @RPCPacket(OPEN_SHOP_EDITOR)
     public static void openShopEditor(RPCSender sender, ShopInfo shopInfo) {
+        if (!sender.isServer()) return;
         EditorWindow editorWindow = getCurrentEditorWindow();
         if (editorWindow == null) return;
 
@@ -53,21 +54,25 @@ public class S2CPayload {
 
     @RPCPacket(LEGACY_SHOP_INFO_PROJECT)
     public static void openShopEditorLegacy(RPCSender sender, ShopInfo shopInfo) {
+        if (!sender.isServer()) return;
         openShopEditor(sender, shopInfo);
     }
 
     @RPCPacket(OPEN_SHOP_SELECTOR)
     public static void openShopSelector(RPCSender sender) {
+        if (!sender.isServer()) return;
         ViScriptShopClientUtil.clientOpenShopSelector();
     }
 
     @RPCPacket(OPEN_SHOP_UI)
     public static void openShopUI(RPCSender sender, String shopLocation, ShopInfo shopInfo, String categoryId, String merchantId) {
+        if (!sender.isServer()) return;
         ViScriptShopClientUtil.clientOpenShop(shopLocation, shopInfo, categoryId, merchantId);
     }
 
     @RPCPacket(SEND_MESSAGE)
     public static void sendMessage(RPCSender sender, Message.Type messageType, Component message) {
+        if (!sender.isServer()) return;
         if (Minecraft.getInstance().screen instanceof ModularUIScreen screen) {
             Message.send(messageType, message.getString(), screen.modularUI.ui.rootElement);
         }
@@ -87,6 +92,7 @@ public class S2CPayload {
 
     @RPCPacket(GET_SHOP_INFO_S2C)
     public static void getShopInfoS2C(RPCSender sender, CompoundTag compoundTag) {
+        if (!sender.isServer()) return;
         if (Minecraft.getInstance().screen instanceof ModularUIScreen screen && screen.modularUI.ui.rootElement instanceof DialogSelect dialogSelect) {
             Codec<Map<String, String>> codec = Codec.unboundedMap(Codec.STRING, Codec.STRING);
             dialogSelect.reload(CodecUtil.deserializeNBT(codec, compoundTag, Platform.getFrozenRegistry()));
@@ -95,6 +101,7 @@ public class S2CPayload {
 
     @RPCPacket(RELOAD_SHOP_UI)
     public static void reloadShopUI(RPCSender sender, ShopInfo shopInfo) {
+        if (!sender.isServer()) return;
         if (Minecraft.getInstance().screen instanceof ModularUIScreen screen
                 && screen.modularUI.ui.rootElement instanceof ShopUI shopUI) {
             String selectedCategoryId = shopUI.getSelectedCategory() != null ? shopUI.getSelectedCategory().getId() : null;
@@ -117,6 +124,7 @@ public class S2CPayload {
 
     @RPCPacket(UPDATE_OUT_OF_STOCK)
     public static void updateOutOfStock(RPCSender sender, String categoryId, String merchantId, int stock) {
+        if (!sender.isServer()) return;
         if (Minecraft.getInstance().screen instanceof ModularUIScreen screen
                 && screen.modularUI.ui.rootElement instanceof ShopUI shopUI) {
             // 找到对应的分类和商品
@@ -139,6 +147,7 @@ public class S2CPayload {
 
     @RPCPacket(GET_ITEM_COUNT)
     public static void getItemCount(RPCSender sender, CompoundTag tag) {
+        if (!sender.isServer()) return;
         var itemEntries = CodecUtil.deserializeList(tag, AggregatedResources.ItemEntry.CODEC, Platform.getFrozenRegistry());
         // 同步给促销条件客户端预览，即使商店界面未打开也要更新
         PlayerItemCondition.updateClientSnapshot(itemEntries);

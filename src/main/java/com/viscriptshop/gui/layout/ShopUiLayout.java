@@ -8,6 +8,6 @@ public interface ShopUiLayout {
 
     UIElement build(ShopTheme theme, ShopUiElements elements);
 
-    default void initScreen(UIElement shell, Size layoutSize) {
+    default void initScreen(UIElement shell, Size layoutSize, boolean grid) {
     }
 }

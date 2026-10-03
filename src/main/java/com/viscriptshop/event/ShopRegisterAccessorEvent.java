@@ -3,6 +3,7 @@ package com.viscriptshop.event;
 import com.viscript_lib.annotation.ViScriptRegisterAccessors;
 import com.viscript_lib.event.RegisterAccessorEvent;
 import com.viscriptshop.gui.data.*;
+import com.viscriptshop.network.c2s.PurchaseRequest;
 import com.viscriptshop.promotion.PromotionRule;
 import com.viscriptshop.promotion.condition.PromotionConditionEntry;
 
@@ -20,6 +21,7 @@ public final class ShopRegisterAccessorEvent {
         event.register(MerchantInfo.class, MerchantInfo::new);
         event.register(CategoryInfo.class, CategoryInfo::new);
         event.register(AggregatedResources.PurchaseEntry.class, AggregatedResources.PurchaseEntry::new);
+        event.register(PurchaseRequest.class, PurchaseRequest::new);
         event.register(AggregatedResources.ItemEntry.class, AggregatedResources.ItemEntry::new);
         event.register(AggregatedResources.class, AggregatedResources::new);
         event.register(PromotionConditionEntry.class, PromotionConditionEntry::new);
