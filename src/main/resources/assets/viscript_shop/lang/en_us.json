@@ -157,7 +157,7 @@
   "viscript_shop.ui.searchMode.id": "Search by ID",
   "viscript_shop.ui.layout.grid": "Grid layout",
   "viscript_shop.ui.layout.list": "List layout",
-  "viscript_shop.tooltip.stock.quick_max": "Hold %s and click to set the quantity to the maximum stock",
+  "viscript_shop.tooltip.stock.quick_max": "Hold %s and click to set the maximum affordable quantity",
   "viscript_shop.message.output_target.unavailable": "%s. Purchase canceled.",
   "viscript_shop.button.confirm": "Confirm",
   "viscript_shop.button.cancel": "Cancel",

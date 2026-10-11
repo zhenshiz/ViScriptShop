@@ -43,9 +43,11 @@ import com.viscriptshop.network.c2s.PurchaseRequest;
 import com.viscriptshop.network.c2s.C2SPayload;
 import com.viscriptshop.network.c2s.GetItemCountC2SPayload;
 import com.viscriptshop.promotion.PromotionEngine;
+import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.promotion.PromotionResult.PriceAdjustment;
 import com.viscriptshop.promotion.PromotionRule;
 import com.viscriptshop.promotion.TradeQuote;
+import com.viscriptshop.promotion.condition.PlayerItemCondition;
 import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscript_lib.util.CountTextUtil;
@@ -1016,9 +1018,9 @@ public class ShopUI extends UIElement {
 
             buttonHolder[1] = ShopButton.other(theme).setText("+").setOnClick(event -> {
                 int maxCount = stock >= 0 ? stock : Integer.MAX_VALUE;
-                if ((int) merchantInfo.getBuyCount() < maxCount) {
-                    merchantInfo.setBuyCount(stock > 0 && event.isCtrlDown()
-                            ? stock
+                if (event.isCtrlDown() || (int) merchantInfo.getBuyCount() < maxCount) {
+                    merchantInfo.setBuyCount(event.isCtrlDown()
+                            ? maxPurchasableQuantity(merchantInfo)
                             : (int) merchantInfo.getBuyCount() + 1);
                     reloadShoppingItem();
                     reloadInventoryItem();
@@ -1027,7 +1029,7 @@ public class ShopUI extends UIElement {
             });
             buttonHolder[1].setId("shop_merchant_add_" + index);
 
-            if (stock > 0) {
+            if (stock != 0) {
                 buttonHolder[1].addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
                     event.hoverTooltips = new HoverTooltips(
                             List.of(Component.translatable(
@@ -1574,7 +1576,100 @@ public class ShopUI extends UIElement {
         }
 
         removeButton.setActive(currentCount > 0);
-        addButton.setActive(currentCount < stock);
+        // 达到库存上限后仍允许 Ctrl/Cmd 将数量改为可支付上限；普通点击由回调限制。
+        addButton.setActive(stock > 0);
+    }
+
+    /**
+     * 计算当前玩家可支付且库存允许的最大交易份数。
+     *
+     * <p>物品数量使用服务端容器计数快照，成本使用实际促销报价。无支付成本且库存无限时
+     * 不存在有限最大值，保持普通增加一份的行为。
+     *
+     * @param merchantInfo 当前分类中的商品信息
+     * @return 最大可购买份数；无法支付或没有玩家时返回零
+     */
+    private int maxPurchasableQuantity(MerchantInfo merchantInfo) {
+        if (minecraft.player == null || selectedCategory == null || merchantInfo.getStock() == 0) {
+            return 0;
+        }
+        int limit = merchantInfo.getStock() < 0 ? Integer.MAX_VALUE : merchantInfo.getStock();
+        SortedSet<Integer> starts = new TreeSet<>();
+        starts.add(1);
+        for (var scopedRule : PromotionResolver.resolve(currentShopInfo, selectedCategory, merchantInfo).rules()) {
+            PromotionRule rule = scopedRule.rule();
+            if (!rule.isEnabled()) continue;
+            if (rule.resolvedType() == PromotionRule.PromotionType.BUY_GET
+                    && rule.getBuyThreshold() > 1 && rule.getBuyThreshold() <= limit) {
+                starts.add(rule.getBuyThreshold());
+            }
+            for (var entry : rule.getConditions()) {
+                if (entry != null && entry.getCondition() instanceof PlayerItemCondition item
+                        && item.isConsumeOnPurchase() && !item.getItem().isEmpty()) {
+                    long couponLimit = item.countItems(minecraft.player) / item.getItem().getCount();
+                    if (couponLimit >= 1 && couponLimit < limit) {
+                        starts.add((int) couponLimit + 1);
+                    }
+                }
+            }
+        }
+
+        // 优惠券耗尽或达到赠品门槛时，成本可能跳变；只在规则不变的区间内查找上限。
+        List<Integer> boundaries = new ArrayList<>(starts);
+        double balance = ViScriptShopClientUtil.getMoney(minecraft.player);
+        for (int i = boundaries.size() - 1; i >= 0; i--) {
+            int lower = boundaries.get(i);
+            int upper = i + 1 < boundaries.size() ? boundaries.get(i + 1) - 1 : limit;
+            AggregatedResources upperCost = quoteMerchantCost(merchantInfo, upper);
+            if (canPayCost(upperCost, balance)) {
+                if (merchantInfo.getStock() < 0 && upper == Integer.MAX_VALUE
+                        && upperCost.getItemEntries().isEmpty() && !MoneyUtil.isPositive(upperCost.getTotalMoney())) {
+                    return (int) Math.min(Integer.MAX_VALUE, (long) merchantInfo.getBuyCount().intValue() + 1);
+                }
+                return upper;
+            }
+            if (!canPayCost(quoteMerchantCost(merchantInfo, lower), balance)) continue;
+            int high = upper - 1;
+            while (lower < high) {
+                int middle = lower + (int) (((long) high - lower + 1) / 2);
+                if (canPayCost(quoteMerchantCost(merchantInfo, middle), balance)) {
+                    lower = middle;
+                } else {
+                    high = middle - 1;
+                }
+            }
+            return lower;
+        }
+        return 0;
+    }
+
+    /**
+     * 获取单个商品按指定交易份数计算的支付成本。
+     *
+     * @param merchantInfo 当前分类中的商品信息
+     * @param quantity 正整数交易份数
+     * @return 包含折扣与消耗型条件物品的汇总成本
+     */
+    private AggregatedResources quoteMerchantCost(MerchantInfo merchantInfo, int quantity) {
+        AggregatedResources request = new AggregatedResources();
+        request.getPurchaseEntries().add(new AggregatedResources.PurchaseEntry(
+                selectedCategory.getId(), merchantInfo.getId(), quantity));
+        return PromotionEngine.quote(minecraft.player, shopLocation, currentShopInfo, request).cost();
+    }
+
+    /**
+     * 检查玩家的物品计数快照与余额是否足以支付报价。
+     *
+     * @param cost 汇总支付成本
+     * @param balance 当前玩家余额
+     * @return 所有物品与货币成本均可支付时返回 {@code true}
+     */
+    private boolean canPayCost(AggregatedResources cost, double balance) {
+        if (cost.hasMissingItems() || !MoneyUtil.hasEnough(balance, cost.getTotalMoney())) return false;
+        for (AggregatedResources.ItemEntry item : cost.getItemEntries()) {
+            if (getItemCount(item) < item.getCount()) return false;
+        }
+        return true;
     }
 
     public void setItemCount(AggregatedResources.ItemEntry itemEntry) {

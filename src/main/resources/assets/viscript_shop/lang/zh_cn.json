@@ -157,7 +157,7 @@
   "viscript_shop.ui.searchMode.id": "序号查询",
   "viscript_shop.ui.layout.grid": "网格布局",
   "viscript_shop.ui.layout.list": "列表布局",
-  "viscript_shop.tooltip.stock.quick_max": "按住 %s 点击可直接设为最大库存",
+  "viscript_shop.tooltip.stock.quick_max": "按住 %s 点击可直接设为最大可购买数量",
   "viscript_shop.message.output_target.unavailable": "%s，购买已取消",
   "viscript_shop.button.confirm": "确定",
   "viscript_shop.button.cancel": "取消",
