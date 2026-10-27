@@ -8,6 +8,8 @@ import com.viscript_lib.gui.editor.EditorUploadAction;
 import com.viscript_lib.gui.editor.FunctionFileEditor;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.data.CategoryInfo;
+import com.viscript_lib.gui.ai.AiEditorAdapter;
+import com.viscriptshop.gui.ai.ShopAiAdapter;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.Shop;
 import com.viscriptshop.gui.settings.ShopEditorSettings;
@@ -28,6 +30,26 @@ import java.io.File;
 public class ShopEditor extends FunctionFileEditor {
     public final static ResourceLocation SHOP_ID = ViscriptShop.id("editor");
 
+    private boolean aiPreviewing;
+
+    /** @return 是否正在浏览尚未确认的 AI 修改 */
+    public boolean isAiPreviewing() { return aiPreviewing; }
+
+    /**
+     * 切换 AI 预览交互并显示首个分类，预览时仍可切换分类与查看商品。
+     *
+     * @param previewing 是否等待玩家确认
+     */
+    public void setAiPreviewing(boolean previewing) {
+        aiPreviewing = previewing;
+        shopInspectorView.setAiPreviewMode(previewing, this);
+        categoryView.loadView();
+        if (previewing && getCurrentProject() instanceof Shop shop && !shop.getShopInfo().getCategoryInfos().isEmpty()) {
+            categoryView.selectPreviewCategory(shop.getShopInfo().getCategoryInfos().getFirst());
+        }
+        shopPreviewView.invalidateMerchants();
+    }
+
     public ShopInspectorView shopInspectorView;
     public final CategoryView categoryView = new CategoryView(this);
     public final ShopPreviewView shopPreviewView = new ShopPreviewView(this);
@@ -38,6 +60,11 @@ public class ShopEditor extends FunctionFileEditor {
         this.centerWindow.getLeftTop().addView(shopPreviewView);
         removeBottomWindow();
         selectInspectorView();
+    }
+
+    @Override
+    public AiEditorAdapter createAiEditorAdapter() {
+        return new ShopAiAdapter();
     }
 
     @Override

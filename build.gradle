@@ -29,10 +29,8 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 dependencies {
     implementation project(":ViScriptLib")
     jarJar project(path: ":ViScriptLib", configuration: "embeddedLibrary")
-    if (project.hasProperty('backpackedTest')) {
-        runtimeOnly "curse.maven:backpacked-352835:${backpacked_file}"
-        runtimeOnly "curse.maven:framework-549225:7530361"
-    }
+    runtimeOnly "curse.maven:backpacked-352835:${backpacked_file}"
+    runtimeOnly "curse.maven:framework-549225:7530361"
 }
 
 publishing {

@@ -14,8 +14,6 @@ import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 public class ShopRegistries {
@@ -35,8 +33,6 @@ public class ShopRegistries {
         public static final StreamCodec<ByteBuf, Money> STREAM_CODEC = ByteBufCodecs.fromCodec(CODEC);
         @Persisted
         private double money;
-        @Persisted
-        private List<String> flags = new ArrayList<>();
         @Persisted
         private String outputTargetId = ItemOutputTargets.PLAYER_INVENTORY;
         /** 玩家偏好的虚拟货币商品布局；旧存档未配置时仍使用列表。 */

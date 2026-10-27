@@ -32,10 +32,10 @@ final class VirtualCurrencyReward extends Reward {
     }
 
     @Override
-    public void claim(ServerPlayer player, boolean notify) {
+    public boolean claim(ServerPlayer player, boolean notify) {
         double granted = MoneyUtil.normalize(amount);
         if (granted <= 0) {
-            return;
+            return false;
         }
 
         ViScriptShopServerUtil.addMoney(player, granted);
@@ -47,6 +47,7 @@ final class VirtualCurrencyReward extends Reward {
                     disableRewardScreenBlur
             ));
         }
+        return true;
     }
 
     @Override

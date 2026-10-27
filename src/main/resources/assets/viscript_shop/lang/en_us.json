@@ -158,6 +158,7 @@
   "viscript_shop.ui.layout.grid": "Grid layout",
   "viscript_shop.ui.layout.list": "List layout",
   "viscript_shop.tooltip.stock.quick_max": "Hold %s and click to set the maximum affordable quantity",
+  "viscript_shop.tooltip.quantity.adjust": "Scroll or hold the left mouse button and drag left or right to adjust the value",
   "viscript_shop.message.output_target.unavailable": "%s. Purchase canceled.",
   "viscript_shop.button.confirm": "Confirm",
   "viscript_shop.button.cancel": "Cancel",
@@ -305,5 +306,14 @@
   "viscript_shop.jei.stage.unlocked": "Unlocked",
   "viscript_shop.jei.stage.locked": "Locked",
   "viscript_shop.jei.stage.group": "Group %s: %s [%s]",
-  "viscript_shop.message.buy.invalid_request": "Invalid purchase list. Reopen the shop and try again."
+  "viscript_shop.message.buy.invalid_request": "Invalid purchase list. Reopen the shop and try again.",
+  "viscript_shop.ai.change.name": "Shop name: %s → %s",
+  "viscript_shop.ai.change.quick_open": "Quick opening: %s → %s",
+  "viscript_shop.ai.change.add_category": "Add category: %s (ID: %s, type: %s)",
+  "viscript_shop.ai.change.rename_category": "Category %s: %s → %s",
+  "viscript_shop.ai.change.remove_category": "Remove category: %s (%s merchants)",
+  "viscript_shop.ai.change.merchant": "Merchant %s:\nBefore: %s\nAfter: %s",
+  "viscript_shop.ai.change.remove_merchant": "Remove merchant %s: %s",
+  "viscript_shop.ai.change.merchant_summary": "Result %s; costs %s + %s; money %s; stock %s; XP %s; %s",
+  "viscript_shop.ai.change.none": "None"
 }

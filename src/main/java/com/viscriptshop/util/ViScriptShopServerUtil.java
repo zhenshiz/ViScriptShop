@@ -6,6 +6,7 @@ import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscript_lib.util.CodecUtil;
 import com.viscriptshop.Config;
 import com.viscriptshop.ShopRegistries;
+import com.viscript_lib.stage.StageUtil;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.ShopEditor;
 import com.viscriptshop.gui.data.CategoryInfo;
@@ -308,56 +309,32 @@ public class ViScriptShopServerUtil {
 
     @Info("获取玩家阶段标记")
     public static List<String> getStageFlags(ServerPlayer player) {
-        return player.getData(ShopRegistries.MONEY).getFlags();
+        return StageUtil.getStageFlags(player);
     }
 
     @Info("玩家是否拥有指定阶段标记")
     public static boolean hasStageFlag(ServerPlayer player, String flag) {
-        return getStageFlags(player).contains(flag);
+        return StageUtil.hasStageFlag(player, flag);
     }
 
     @Info("玩家是否拥有所有指定阶段标记")
     public static boolean hasStageFlags(ServerPlayer player, List<String> flags) {
-        return getMissingStageFlags(player, flags).isEmpty();
+        return StageUtil.hasStageFlags(player, flags);
     }
 
     @Info("获取玩家缺少的阶段标记")
     public static List<String> getMissingStageFlags(ServerPlayer player, List<String> flags) {
-        if (flags == null || flags.isEmpty()) {
-            return List.of();
-        }
-        List<String> playerFlags = getStageFlags(player);
-        List<String> missing = new ArrayList<>();
-        for (String flag : flags) {
-            if (!flag.isEmpty() && !playerFlags.contains(flag)) {
-                missing.add(flag);
-            }
-        }
-        return missing;
+        return StageUtil.getMissingStageFlags(player, flags);
     }
 
     @Info("给玩家添加阶段标记")
     public static boolean addStageFlag(ServerPlayer player, String flag) {
-        if (flag.isEmpty()) {
-            return false;
-        }
-        ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
-        if (data.getFlags().contains(flag)) {
-            return false;
-        }
-        data.getFlags().add(flag);
-        player.setData(ShopRegistries.MONEY, data);
-        return true;
+        return StageUtil.addStageFlag(player, flag);
     }
 
     @Info("移除玩家阶段标记")
     public static boolean removeStageFlag(ServerPlayer player, String flag) {
-        ShopRegistries.Money data = player.getData(ShopRegistries.MONEY);
-        boolean removed = data.getFlags().remove(flag);
-        if (removed) {
-            player.setData(ShopRegistries.MONEY, data);
-        }
-        return removed;
+        return StageUtil.removeStageFlag(player, flag);
     }
 
     @Info("设置玩家钱")

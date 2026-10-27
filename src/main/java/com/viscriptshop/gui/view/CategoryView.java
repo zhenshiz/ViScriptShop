@@ -120,10 +120,15 @@ public class CategoryView extends View {
                 layout.alignItems(AlignItems.CENTER);
                 layout.marginBottom(5);
             }).addChildren(dragHandle, categoryUI, deleteButton);
-            draggableCategories.addSortableCard(categoryInfo, uiElement, dragHandle);
+            if (editor.isAiPreviewing()) {
+                dragHandle.setDisplay(false);
+                deleteButton.setDisplay(false);
+                draggableCategories.addChild(uiElement);
+            } else draggableCategories.addSortableCard(categoryInfo, uiElement, dragHandle);
         }
 
         scrollerView.addScrollViewChild(draggableCategories);
+        if (editor.isAiPreviewing()) return;
         scrollerView.viewContainer.addChildren(new Button().setText("+").setOnClick(event -> {
             CategoryInfo categoryInfo = new CategoryInfo();
             shopInfo.getCategoryInfos().add(categoryInfo);
@@ -168,6 +173,13 @@ public class CategoryView extends View {
         }
         return -1;
     }
+
+    /**
+     * 选择 AI 预览中的分类，不创建编辑历史。
+     *
+     * @param category 要显示的分类
+     */
+    public void selectPreviewCategory(CategoryInfo category) { setSelectedCategory(category); }
 
     private void setSelectedCategory(CategoryInfo newCategory) {
         if (newCategory != this.selectedCategory) {

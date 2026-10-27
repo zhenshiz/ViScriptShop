@@ -48,3 +48,5 @@ git submodule update --init --recursive
 | `./gradlew cleanLibs` | 清理所有子项目的构建产物 |
 
 对本仓库的修改需要以子模块的形式提交并推送到本仓库；随后在主工程中再提交一次指向新 commit 的子模块引用。
+
+FTB Quests 联动需要 2101.1.37 或更新版本（Minecraft 1.21.1 / NeoForge）。虚拟货币奖励适配返回领取结果的 `Reward.claim` 接口。
