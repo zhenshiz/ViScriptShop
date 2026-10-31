@@ -27,7 +27,6 @@ import java.util.Map;
 public class S2CPayload {
     public static final String MOD_ID = ViscriptShop.MOD_ID + ":";
     public static final String OPEN_SHOP_EDITOR = MOD_ID + "open_shop_editor";
-    private static final String LEGACY_SHOP_INFO_PROJECT = MOD_ID + "shop_info_project";
     public static final String OPEN_SHOP_SELECTOR = MOD_ID + "open_shop_selector";
     public static final String OPEN_SHOP_UI = MOD_ID + "open_shop_ui";
     public static final String SEND_MESSAGE = MOD_ID + "send_message";
@@ -50,12 +49,6 @@ public class S2CPayload {
             editor.loadProject(shop, null);
         } catch (Exception ignored) {
         }
-    }
-
-    @RPCPacket(LEGACY_SHOP_INFO_PROJECT)
-    public static void openShopEditorLegacy(RPCSender sender, ShopInfo shopInfo) {
-        if (!sender.isServer()) return;
-        openShopEditor(sender, shopInfo);
     }
 
     @RPCPacket(OPEN_SHOP_SELECTOR)

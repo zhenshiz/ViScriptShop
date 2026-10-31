@@ -2,9 +2,9 @@ package com.viscriptshop.gui;
 
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.lowdragmc.lowdraglib2.configurator.ui.StringConfigurator;
+import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.*;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.GridTemplate;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
@@ -18,6 +18,7 @@ import com.viscript_lib.register.IContainerHelper;
 import com.viscript_lib.util.CountTextUtil;
 import com.viscript_lib.util.item.ItemOutputTargets;
 import com.viscript_lib.util.item.SimpleItemStackFilter;
+import com.viscript_lib.util.math.Clamp;
 import com.viscriptshop.Config;
 import com.viscriptshop.ShopRegistries;
 import com.viscriptshop.ViscriptShop;
@@ -33,9 +34,11 @@ import com.viscriptshop.network.c2s.C2SPayload;
 import com.viscriptshop.network.c2s.GetItemCountC2SPayload;
 import com.viscriptshop.network.c2s.PurchaseRequest;
 import com.viscriptshop.promotion.PromotionEngine;
+import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.promotion.PromotionResult.PriceAdjustment;
 import com.viscriptshop.promotion.PromotionRule;
 import com.viscriptshop.promotion.TradeQuote;
+import com.viscriptshop.promotion.condition.PlayerItemCondition;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.ShopHelper;
 import com.viscriptshop.util.UIElementUtil;
@@ -57,6 +60,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class ShopUI extends UIElement {
     Minecraft minecraft = Minecraft.getInstance();
@@ -64,7 +68,8 @@ public class ShopUI extends UIElement {
     private final ShopTheme theme = ShopTheme.current();
     // 界面
     public ScrollerView categoryView = new ShopScrollerView(theme);
-    public ScrollerView merchantsView = new ShopScrollerView(theme);
+    private final MerchantScroller merchantScroller = new MerchantScroller();
+    public ScrollerView merchantsView = merchantScroller;
     public ScrollerView shoppingCarView = new ShopScrollerView(theme);
     public ScrollerView inventoryView = new ShopScrollerView(theme);
     public SearchComponent<ItemStack> searchComponent;
@@ -78,7 +83,7 @@ public class ShopUI extends UIElement {
     private final SpriteTexture LOCK = SpriteTexture.of(ViscriptShop.formattedMod("textures/icons/lock.png"));
     private final SpriteTexture COIN = SpriteTexture.of(ViscriptShop.formattedMod("textures/icons/coin.png"));
     private static final float CURRENCY_GRID_GAP = 3f;
-    private static final float CURRENCY_GRID_MIN_WIDTH = MerchantItemAmountDisplay.COUNT_WIDTH * 2 + 2 + 10;
+    private static final float CURRENCY_GRID_ITEM_SIZE = 24f;
     private static final float MERCHANT_ARROW_SIZE = 12;
     private static final float CURRENCY_COLUMN_WIDTH = MerchantItemAmountDisplay.PRICE_WIDTH;
     private static final float CURRENCY_TRADE_GAP = 6;
@@ -86,6 +91,8 @@ public class ShopUI extends UIElement {
     private static final float LIST_COUNT_WIDTH = 30;
     private static final float LIST_CONTROL_GAP = 2;
     private static final float LIST_CONTROL_WIDTH = LIST_BUTTON_SIZE * 2 + LIST_COUNT_WIDTH + LIST_CONTROL_GAP * 2;
+    private static final float CURRENCY_GRID_MIN_WIDTH = Math.max(CURRENCY_GRID_ITEM_SIZE * 2 + 2,
+            LIST_CONTROL_WIDTH) + 10;
     private static final float LIST_CARD_HEIGHT = 28;
     private static final float LOCKED_CATEGORY_OPACITY = 0.7f;
 
@@ -119,6 +126,7 @@ public class ShopUI extends UIElement {
     private int currencyGridColumns = -1;
     private float currencyGridTrackWidth;
     private String renderedCategoryState = "";
+    private List<MerchantEntry> visibleMerchants = List.of();
 
     public ShopUI(String shopLocation, ShopInfo shopInfo, String title) {
         this(shopLocation, shopInfo, title, null, null);
@@ -202,7 +210,8 @@ public class ShopUI extends UIElement {
         merchantsView.viewPort.getStyle().backgroundTexture(IGuiTexture.EMPTY);
         merchantsView.viewContainer.layout(layout -> {
             layout.flexDirection(FlexDirection.COLUMN);
-            layout.gapAll(5);
+            layout.gapAll(0);
+            layout.paddingAll(0);
         });
         merchantsView.viewPort.addEventListener(UIEvents.LAYOUT_CHANGED, event -> updateCurrencyGridColumns());
 
@@ -543,14 +552,16 @@ public class ShopUI extends UIElement {
     }
 
     public void reloadMerchants() {
-        merchantsView.clearAllScrollViewChildren();
         updateCurrencyLayoutToggleState();
-        configureMerchantsContainerLayout();
         if (selectedCategory == null || isCategoryLocked(selectedCategory)) {
+            visibleMerchants = List.of();
+            configureMerchantsContainerLayout();
+            merchantScroller.setItems(List.of());
             return;
         }
 
-        // 重新添加所有商品
+        List<MerchantEntry> filtered = new ArrayList<>();
+        // 筛选只处理商品数据，卡片由虚拟列表按可见行创建。
         for (int i = 0; i < selectedCategory.getMerchants().size(); i++) {
             MerchantInfo merchantInfo = selectedCategory.getMerchants().get(i);
             // 锁定内容显示方式：隐藏
@@ -583,14 +594,12 @@ public class ShopUI extends UIElement {
                     }
                 }
             }
-            if (isCurrencyGridActive()) {
-                merchantsView.addScrollViewChild(createCurrencyMerchantGrid(merchantInfo, i));
-            } else {
-                merchantsView.addScrollViewChild(createMerchant(merchantInfo, i));
-            }
+            filtered.add(new MerchantEntry(i, merchantInfo));
         }
-        currencyGridColumns = -1;
-        updateCurrencyGridColumns();
+        visibleMerchants = List.copyOf(filtered);
+        configureMerchantsContainerLayout();
+        merchantScroller.rebuildRows();
+        merchantScroller.scrollToTop();
     }
 
     private boolean isCurrencyGridActive() {
@@ -612,56 +621,89 @@ public class ShopUI extends UIElement {
         var window = minecraft.getWindow();
         shopUiLayout.initScreen(shopUiShell,
                 getShopLayoutSize(Size.of(window.getGuiScaledWidth(), window.getGuiScaledHeight())), isCurrencyGridActive());
-        if (isCurrencyGridActive()) {
-            merchantsView.viewContainer.layout(layout -> {
-                layout.display(TaffyDisplay.GRID);
-                layout.gridAutoFlow(GridAutoFlow.ROW);
-                layout.justifyItems(AlignItems.CENTER);
-                layout.alignItems(AlignItems.FLEX_START);
-                layout.justifyContent(AlignContent.CENTER);
-                layout.alignContent(AlignContent.FLEX_START);
-                layout.gapAll(CURRENCY_GRID_GAP);
-            });
-            updateCurrencyGridColumns();
-        } else {
-            merchantsView.viewContainer.layout(layout -> {
-                layout.display(TaffyDisplay.FLEX);
-                layout.flexDirection(FlexDirection.COLUMN);
-                layout.wrap(FlexWrap.NO_WRAP);
-                layout.alignItems(AlignItems.CENTER);
-                layout.gapAll(5);
-            });
-            currencyGridColumns = -1;
-        }
+        merchantsView.viewContainer.layout(layout -> {
+            layout.display(TaffyDisplay.FLEX);
+            layout.flexDirection(FlexDirection.COLUMN);
+            layout.wrap(FlexWrap.NO_WRAP);
+            layout.alignItems(AlignItems.STRETCH);
+            layout.gapAll(0);
+            layout.paddingAll(0);
+        });
+        updateCurrencyGridColumns();
     }
 
     private void updateCurrencyGridColumns() {
-        if (!isCurrencyGridActive()) return;
-        if (merchantsView == null || merchantsView.viewPort == null) return;
-
         float available = merchantsView.viewPort.getContentWidth();
         if (available <= 1f) return;
 
-        float cardWidth = Math.min(available, Math.max(theme.merchantGridWidth(), CURRENCY_GRID_MIN_WIDTH));
-        int cols = Math.max(1, (int) Math.floor((available + CURRENCY_GRID_GAP) / (cardWidth + CURRENCY_GRID_GAP)));
-        while (cols > 1) {
-            float required = cols * cardWidth + (cols - 1) * CURRENCY_GRID_GAP;
-            if (required <= available + 0.01f) break;
-            cols--;
-        }
-        if (cols == currencyGridColumns && Math.abs(cardWidth - currencyGridTrackWidth) < 0.01f) return;
-        currencyGridColumns = cols;
+        boolean grid = isCurrencyGridActive();
+        float cardWidth = grid ? Clamp.clamp(theme.merchantGridWidth(), CURRENCY_GRID_MIN_WIDTH, available) : 0;
+        int columns = grid ? Math.max(1, (int) Math.floor((available + CURRENCY_GRID_GAP)
+                / (cardWidth + CURRENCY_GRID_GAP))) : 1;
+        if (columns == currencyGridColumns && Math.abs(cardWidth - currencyGridTrackWidth) < 0.01f) return;
+        currencyGridColumns = columns;
         currencyGridTrackWidth = cardWidth;
-        // 使用与轨道一致的固定宽度，避免百分比网格项在渲染时按整个容器宽度展开。
-        merchantsView.viewContainer.select(".shop-merchant-grid-card")
-                .forEach(card -> card.getLayout().width(cardWidth));
+        merchantScroller.rebuildRows();
+    }
 
-        List<TrackSizingFunction> tracks = new ArrayList<>(cols);
-        for (int i = 0; i < cols; i++) {
-            tracks.add(TrackSizingFunction.fixed(cardWidth));
+    private final class MerchantScroller extends VirtualScrollerView<Integer> {
+        private float viewportHeight;
+
+        private MerchantScroller() {
+            ShopScrollerView.applyTheme(this, theme);
+            setId("shop_merchant_scroller");
+            setItemUIProvider(this::createRow);
         }
-        merchantsView.viewContainer.getLayout().gridTemplateColumns(new GridTemplate(tracks, List.of(), List.of()));
-        merchantsView.viewContainer.markTaffyStyleDirty();
+
+        private void rebuildRows() {
+            boolean grid = isCurrencyGridActive();
+            float rowHeight = grid ? Math.max(80, theme.merchantGridHeight()) + CURRENCY_GRID_GAP
+                    : Math.max(LIST_CARD_HEIGHT, theme.merchantRowHeight()) + 5;
+            virtualScrollerViewStyle(style -> style
+                    .itemHeightMode(grid ? VirtualItemHeightMode.VARIABLE : VirtualItemHeightMode.FIXED)
+                    .estimatedItemHeight(rowHeight)
+                    .overscanPixels(rowHeight * 2));
+            int columns = Math.max(1, currencyGridColumns);
+            int rows = (visibleMerchants.size() + columns - 1) / columns;
+            setItems(IntStream.range(0, rows).boxed().toList());
+        }
+
+        private UIElement createRow(int rowIndex) {
+            boolean grid = isCurrencyGridActive();
+            UIElement row = new UIElement().addClass("shop-merchant-virtual-row").layout(layout -> {
+                layout.widthPercent(100);
+                layout.flexDirection(FlexDirection.ROW);
+                layout.justifyContent(AlignContent.CENTER);
+                layout.alignItems(AlignItems.STRETCH);
+                layout.gapAll(grid ? CURRENCY_GRID_GAP : 0);
+                layout.paddingBottom(grid ? CURRENCY_GRID_GAP : 5);
+                if (!grid) layout.height(Math.max(LIST_CARD_HEIGHT, theme.merchantRowHeight()) + 5);
+            });
+            int columns = Math.max(1, currencyGridColumns);
+            for (int i = rowIndex * columns; i < Math.min(visibleMerchants.size(), (rowIndex + 1) * columns); i++) {
+                MerchantEntry entry = visibleMerchants.get(i);
+                UIElement card = grid ? createCurrencyMerchantGrid(entry.merchant(), entry.index())
+                        : createMerchant(entry.merchant(), entry.index());
+                if (grid) card.getLayout().width(currencyGridTrackWidth);
+                card.addClass("shop-merchant-card");
+                row.addChild(card);
+            }
+            return row;
+        }
+
+        @Override
+        public void screenTick() {
+            updateCurrencyGridColumns();
+            float height = viewPort.getContentHeight();
+            if (Math.abs(height - viewportHeight) > 0.01f) {
+                viewportHeight = height;
+                refreshVisibleItems();
+            }
+            super.screenTick();
+        }
+    }
+
+    private record MerchantEntry(int index, MerchantInfo merchant) {
     }
 
     public void reloadShoppingItem() {
@@ -988,65 +1030,7 @@ public class ShopUI extends UIElement {
                             event.hoverTooltips = new HoverTooltips(lockReasons, null, null, null));
             actionArea.addChild(lockIcon);
         } else {
-            final Button[] buttonHolder = new Button[2];
-
-            buttonHolder[0] = ShopButton.other(theme).setText("-").setOnClick(event -> {
-                if ((int) merchantInfo.getBuyCount() > 0) {
-                    merchantInfo.setBuyCount((int) merchantInfo.getBuyCount() - 1);
-                    reloadShoppingItem();
-                    reloadInventoryItem();
-                    updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
-                }
-            });
-            buttonHolder[0].setId("shop_merchant_remove_" + index);
-
-            buttonHolder[1] = ShopButton.other(theme).setText("+").setOnClick(event -> {
-                int maxCount = stock >= 0 ? stock : Integer.MAX_VALUE;
-                if ((int) merchantInfo.getBuyCount() < maxCount) {
-                    merchantInfo.setBuyCount(stock > 0 && event.isCtrlDown()
-                            ? stock
-                            : (int) merchantInfo.getBuyCount() + 1);
-                    reloadShoppingItem();
-                    reloadInventoryItem();
-                    updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
-                }
-            });
-            buttonHolder[1].setId("shop_merchant_add_" + index);
-
-            if (stock > 0) {
-                buttonHolder[1].addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-                    event.hoverTooltips = new HoverTooltips(
-                            List.of(Component.translatable(
-                                    "viscript_shop.tooltip.stock.quick_max",
-                                    Minecraft.ON_OSX ? "Cmd" : "Ctrl"
-                            )),
-                            null, null, null
-                    );
-                });
-            }
-
-            NumberConfigurator countConfigurator = new NumberConfigurator("", merchantInfo::getBuyCount, count -> {
-                merchantInfo.setBuyCount(count);
-                reloadShoppingItem();
-                reloadInventoryItem();
-                updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
-            }, 0, true);
-            countConfigurator.setId("shop_merchant_count_" + index);
-            countConfigurator.getLayout().width(LIST_COUNT_WIDTH);
-            countConfigurator.getLayout().flexShrink(0);
-            actionArea.getLayout().flexShrink(0);
-            for (Button button : buttonHolder) {
-                button.layout(layout -> {
-                    layout.width(LIST_BUTTON_SIZE);
-                    layout.height(LIST_BUTTON_SIZE);
-                    layout.paddingHorizontal(0);
-                    layout.flexShrink(0);
-                });
-                button.textStyle(style -> style.fontSize(6));
-            }
-            applyMerchantCountFieldBackground(countConfigurator);
-            applyStockRestrictions(merchantInfo, countConfigurator, buttonHolder[0], buttonHolder[1]);
-            actionArea.addChildren(buttonHolder[0], countConfigurator, buttonHolder[1]);
+            addMerchantQuantityControls(actionArea, merchantInfo, index, "shop_merchant_", false);
         }
 
         UIElement actionSpacer = new UIElement().layout(layout -> {
@@ -1056,6 +1040,78 @@ public class ShopUI extends UIElement {
         merchant.addChildren(giftSlot, actionSpacer, actionArea);
 
         return merchant;
+    }
+
+    private void addMerchantQuantityControls(UIElement actionArea, MerchantInfo merchantInfo, int index,
+                                             String idPrefix, boolean locked) {
+        int stock = merchantInfo.getStock();
+        final Button[] buttonHolder = new Button[2];
+
+        buttonHolder[0] = ShopButton.other(theme).setText("-").setOnClick(event -> {
+            if ((int) merchantInfo.getBuyCount() > 0) {
+                merchantInfo.setBuyCount((int) merchantInfo.getBuyCount() - 1);
+                reloadShoppingItem();
+                reloadInventoryItem();
+                updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
+            }
+        });
+        buttonHolder[0].setId("shop_merchant_remove_" + index);
+
+        buttonHolder[1] = ShopButton.other(theme).setText("+").setOnClick(event -> {
+            int maxCount = stock >= 0 ? stock : Integer.MAX_VALUE;
+            if (event.isCtrlDown() || (int) merchantInfo.getBuyCount() < maxCount) {
+                merchantInfo.setBuyCount(event.isCtrlDown()
+                        ? maxPurchasableQuantity(merchantInfo)
+                        : (int) merchantInfo.getBuyCount() + 1);
+                reloadShoppingItem();
+                reloadInventoryItem();
+                updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
+            }
+        });
+        buttonHolder[1].setId("shop_merchant_add_" + index);
+
+        if (stock != 0) {
+            buttonHolder[1].addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+                event.hoverTooltips = new HoverTooltips(
+                        List.of(Component.translatable(
+                                "viscript_shop.tooltip.stock.quick_max",
+                                Minecraft.ON_OSX ? "Cmd" : "Ctrl"
+                        )),
+                        null, null, null
+                );
+            });
+        }
+
+        NumberConfigurator countConfigurator = new NumberConfigurator("", merchantInfo::getBuyCount, count -> {
+            merchantInfo.setBuyCount(count);
+            reloadShoppingItem();
+            reloadInventoryItem();
+            updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
+        }, 0, true);
+        countConfigurator.setId(idPrefix + "count_" + index);
+        countConfigurator.textField.setId(idPrefix + "count_input_" + index);
+        countConfigurator.getLayout().width(LIST_COUNT_WIDTH);
+        countConfigurator.getLayout().flexShrink(0);
+        for (Button button : buttonHolder) {
+            button.layout(layout -> {
+                layout.width(LIST_BUTTON_SIZE);
+                layout.height(LIST_BUTTON_SIZE);
+                layout.paddingHorizontal(0);
+                layout.flexShrink(0);
+            });
+            button.textStyle(style -> style.fontSize(6));
+        }
+        configureMerchantCountField(countConfigurator);
+        if (locked) {
+            countConfigurator.setRange(0, 0);
+            countConfigurator.textField.setWheelDur(0);
+            countConfigurator.textField.setActive(false);
+            buttonHolder[0].setActive(false);
+            buttonHolder[1].setActive(false);
+        } else {
+            applyStockRestrictions(merchantInfo, countConfigurator, buttonHolder[0], buttonHolder[1]);
+        }
+        actionArea.addChildren(buttonHolder[0], countConfigurator, buttonHolder[1]);
     }
 
     private UIElement createMerchantListColumn(String id, float width, UIElement content) {
@@ -1098,13 +1154,14 @@ public class ShopUI extends UIElement {
         });
 
         UIElement resultItemSlot = createMerchantResultElement(merchantInfo, "itemResult" + index, true);
+        sizeCurrencyGridItem(resultItemSlot);
         var gift = MerchantGiftPreview.create(currentShopInfo, selectedCategory, merchantInfo,
                 "shop_merchant_grid_" + index);
         UIElement items = new UIElement()
                 .setId("shop_merchant_grid_items_" + index)
                 .layout(layout -> {
                     layout.widthPercent(100);
-                    layout.minHeight(20);
+                    layout.height(CURRENCY_GRID_ITEM_SIZE);
                     layout.flexDirection(FlexDirection.ROW);
                     layout.wrap(FlexWrap.NO_WRAP);
                     layout.alignItems(AlignItems.FLEX_START);
@@ -1112,7 +1169,10 @@ public class ShopUI extends UIElement {
                     layout.gapAll(2);
                     layout.flexShrink(0);
                 }).addChild(resultItemSlot);
-        gift.ifPresent(items::addChild);
+        gift.ifPresent(display -> {
+            sizeCurrencyGridItem(display);
+            items.addChild(display);
+        });
 
         String tradeText = merchantInfo.getTradeType().getSerializedName();
         Label tradeLabel = (Label) new Label()
@@ -1120,8 +1180,8 @@ public class ShopUI extends UIElement {
                 .textStyle(style -> style.textAlignHorizontal(Horizontal.CENTER)
                         .textAlignVertical(Vertical.CENTER).fontSize(6).adaptiveWidth(false))
                 .layout(layout -> {
-                    layout.width(12);
-                    layout.height(10);
+                    layout.widthPercent(100);
+                    layout.height(8);
                     layout.flexShrink(0);
                 });
         tradeLabel.setId("shop_merchant_grid_trade_" + index);
@@ -1163,43 +1223,17 @@ public class ShopUI extends UIElement {
             layout.gapAll(3);
         }).addChildren(items, price);
 
-        NumberConfigurator countConfigurator;
-        if (locked) {
-            countConfigurator = new NumberConfigurator("", () -> 0, count -> {}, 0, true);
-        } else {
-            countConfigurator = new NumberConfigurator("", merchantInfo::getBuyCount, count -> {
-                merchantInfo.setBuyCount(count);
-                reloadShoppingItem();
-                reloadInventoryItem();
-            }, 0, true);
-        }
-        countConfigurator.setId("shop_merchant_grid_count_" + index);
-        countConfigurator.textField.setId("shop_merchant_grid_count_input_" + index);
-        countConfigurator.layout(layout -> layout.width(28));
-        applyMerchantCountFieldBackground(countConfigurator);
-        if (locked) {
-            countConfigurator.setRange(0, 0);
-            countConfigurator.textField.setWheelDur(0);
-            countConfigurator.textField.setActive(false);
-        } else if (stock >= 0) {
-            countConfigurator.setRange(0, stock);
-            if (stock == 0) {
-                countConfigurator.textField.setWheelDur(0);
-                countConfigurator.textField.setActive(false);
-            }
-        } else {
-            countConfigurator.setRange(0, Integer.MAX_VALUE);
-        }
-
         UIElement controls = new UIElement().layout(layout -> {
             layout.widthPercent(100);
             layout.flexDirection(FlexDirection.ROW);
             layout.alignItems(AlignItems.CENTER);
             layout.justifyContent(AlignContent.CENTER);
-            layout.gapAll(2);
-        }).addChildren(tradeLabel, countConfigurator);
+            layout.gapAll(LIST_CONTROL_GAP);
+            layout.flexShrink(0);
+        });
+        addMerchantQuantityControls(controls, merchantInfo, index, "shop_merchant_grid_", locked);
         controls.setId("shop_merchant_grid_controls_" + index);
-        merchant.addChildren(id, body, controls);
+        merchant.addChildren(id, body, tradeLabel, controls);
         if (locked) {
             UIElement lockIcon = new UIElement()
                     .setId("shop_merchant_grid_lock_" + index)
@@ -1218,20 +1252,57 @@ public class ShopUI extends UIElement {
         return merchant;
     }
 
-    private MerchantItemAmountDisplay createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
+    private void sizeCurrencyGridItem(UIElement display) {
+        display.layout(layout -> {
+            layout.width(CURRENCY_GRID_ITEM_SIZE);
+            layout.height(CURRENCY_GRID_ITEM_SIZE);
+        });
+        display.getChildren().get(0).setOverflowVisible(false).layout(layout -> {
+            layout.width(CURRENCY_GRID_ITEM_SIZE);
+            layout.height(CURRENCY_GRID_ITEM_SIZE);
+        });
+        display.selectId(display.getId() + "_icon").forEach(icon -> icon.layout(layout -> {
+            layout.width(CURRENCY_GRID_ITEM_SIZE);
+            layout.height(CURRENCY_GRID_ITEM_SIZE);
+            layout.left(0);
+        }));
+        display.selectId(display.getId() + "_count")
+                .forEach(count -> count.getLayout().width(CURRENCY_GRID_ITEM_SIZE));
+        display.selectId(display.getId() + "_gift")
+                .forEach(badge -> {
+                    ((Label) badge).getTextStyle().fontSize(MerchantItemAmountDisplay.COUNT_FONT_SIZE);
+                    badge.layout(layout -> {
+                        layout.width(CURRENCY_GRID_ITEM_SIZE);
+                        layout.height(MerchantItemAmountDisplay.COUNT_FONT_SIZE + 2);
+                    });
+                });
+    }
+
+    private UIElement createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
                                                                String id) {
         return createMoneyPriceElement(adjustment, id, false);
     }
 
-    private MerchantItemAmountDisplay createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
+    private UIElement createMoneyPriceElement(Supplier<PriceAdjustment> adjustment,
                                                                String id, boolean finalOnly) {
-        MerchantItemAmountDisplay element;
+        UIElement element;
         if (finalOnly) {
-            element = MerchantItemAmountDisplay.count(COIN, id, () -> {
+            Supplier<Component> amount = () -> {
                 PriceAdjustment current = adjustment.get();
                 return Component.literal(MoneyUtil.formatCompact(current.finalAmount()))
                         .withStyle(current.hasChange() ? ChatFormatting.GOLD : ChatFormatting.WHITE);
-            });
+            };
+            Label label = (Label) new Label().setText(amount.get()).textStyle(style -> style
+                    .fontSize(8)
+                    .textAlignHorizontal(Horizontal.CENTER)
+                    .textAlignVertical(Vertical.CENTER)
+                    .adaptiveWidth(false))
+                    .layout(layout -> {
+                        layout.widthPercent(100);
+                        layout.height(10);
+                    });
+            label.bindDataSource(SupplierDataSource.of(amount));
+            element = label.setId(id);
         } else {
             element = MerchantItemAmountDisplay.price(
                     COIN,
@@ -1435,10 +1506,15 @@ public class ShopUI extends UIElement {
         return text == null || text.isBlank() ? Component.empty() : Component.translatable(text);
     }
 
-    private void applyMerchantCountFieldBackground(NumberConfigurator countConfigurator) {
+    private void configureMerchantCountField(NumberConfigurator countConfigurator) {
         countConfigurator.inlineContainer.getStyle().backgroundTexture(IGuiTexture.EMPTY);
         countConfigurator.textField.getStyle().backgroundTexture(theme.searchField());
         countConfigurator.textField.textFieldStyle(style -> style.focusOverlay(IGuiTexture.EMPTY));
+        countConfigurator.textField.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+            var lines = new ArrayList<>(countConfigurator.textField.getStyle().tooltips().asList());
+            lines.add(Component.translatable("viscript_shop.tooltip.quantity.adjust"));
+            event.hoverTooltips = new HoverTooltips(lines, null, null, null);
+        });
     }
 
     /**
@@ -1560,7 +1636,100 @@ public class ShopUI extends UIElement {
         }
 
         removeButton.setActive(currentCount > 0);
-        addButton.setActive(currentCount < stock);
+        // 达到库存上限后仍允许 Ctrl/Cmd 将数量改为可支付上限；普通点击由回调限制。
+        addButton.setActive(stock > 0);
+    }
+
+    /**
+     * 计算当前玩家可支付且库存允许的最大交易份数。
+     *
+     * <p>物品数量使用服务端容器计数快照，成本使用实际促销报价。无支付成本且库存无限时
+     * 不存在有限最大值，保持普通增加一份的行为。
+     *
+     * @param merchantInfo 当前分类中的商品信息
+     * @return 最大可购买份数；无法支付或没有玩家时返回零
+     */
+    private int maxPurchasableQuantity(MerchantInfo merchantInfo) {
+        if (minecraft.player == null || selectedCategory == null || merchantInfo.getStock() == 0) {
+            return 0;
+        }
+        int limit = merchantInfo.getStock() < 0 ? Integer.MAX_VALUE : merchantInfo.getStock();
+        SortedSet<Integer> starts = new TreeSet<>();
+        starts.add(1);
+        for (var scopedRule : PromotionResolver.resolve(currentShopInfo, selectedCategory, merchantInfo).rules()) {
+            PromotionRule rule = scopedRule.rule();
+            if (!rule.isEnabled()) continue;
+            if (rule.resolvedType() == PromotionRule.PromotionType.BUY_GET
+                    && rule.getBuyThreshold() > 1 && rule.getBuyThreshold() <= limit) {
+                starts.add(rule.getBuyThreshold());
+            }
+            for (var entry : rule.getConditions()) {
+                if (entry != null && entry.getCondition() instanceof PlayerItemCondition item
+                        && item.isConsumeOnPurchase() && !item.getItem().isEmpty()) {
+                    long couponLimit = item.countItems(minecraft.player) / item.getItem().getCount();
+                    if (couponLimit >= 1 && couponLimit < limit) {
+                        starts.add((int) couponLimit + 1);
+                    }
+                }
+            }
+        }
+
+        // 优惠券耗尽或达到赠品门槛时，成本可能跳变；只在规则不变的区间内查找上限。
+        List<Integer> boundaries = new ArrayList<>(starts);
+        double balance = ViScriptShopClientUtil.getMoney(minecraft.player);
+        for (int i = boundaries.size() - 1; i >= 0; i--) {
+            int lower = boundaries.get(i);
+            int upper = i + 1 < boundaries.size() ? boundaries.get(i + 1) - 1 : limit;
+            AggregatedResources upperCost = quoteMerchantCost(merchantInfo, upper);
+            if (canPayCost(upperCost, balance)) {
+                if (merchantInfo.getStock() < 0 && upper == Integer.MAX_VALUE
+                        && upperCost.getItemEntries().isEmpty() && !MoneyUtil.isPositive(upperCost.getTotalMoney())) {
+                    return (int) Math.min(Integer.MAX_VALUE, (long) merchantInfo.getBuyCount().intValue() + 1);
+                }
+                return upper;
+            }
+            if (!canPayCost(quoteMerchantCost(merchantInfo, lower), balance)) continue;
+            int high = upper - 1;
+            while (lower < high) {
+                int middle = lower + (int) (((long) high - lower + 1) / 2);
+                if (canPayCost(quoteMerchantCost(merchantInfo, middle), balance)) {
+                    lower = middle;
+                } else {
+                    high = middle - 1;
+                }
+            }
+            return lower;
+        }
+        return 0;
+    }
+
+    /**
+     * 获取单个商品按指定交易份数计算的支付成本。
+     *
+     * @param merchantInfo 当前分类中的商品信息
+     * @param quantity 正整数交易份数
+     * @return 包含折扣与消耗型条件物品的汇总成本
+     */
+    private AggregatedResources quoteMerchantCost(MerchantInfo merchantInfo, int quantity) {
+        AggregatedResources request = new AggregatedResources();
+        request.getPurchaseEntries().add(new AggregatedResources.PurchaseEntry(
+                selectedCategory.getId(), merchantInfo.getId(), quantity));
+        return PromotionEngine.quote(minecraft.player, shopLocation, currentShopInfo, request).cost();
+    }
+
+    /**
+     * 检查玩家的物品计数快照与余额是否足以支付报价。
+     *
+     * @param cost 汇总支付成本
+     * @param balance 当前玩家余额
+     * @return 所有物品与货币成本均可支付时返回 {@code true}
+     */
+    private boolean canPayCost(AggregatedResources cost, double balance) {
+        if (cost.hasMissingItems() || !MoneyUtil.hasEnough(balance, cost.getTotalMoney())) return false;
+        for (AggregatedResources.ItemEntry item : cost.getItemEntries()) {
+            if (getItemCount(item) < item.getCount()) return false;
+        }
+        return true;
     }
 
     public void setItemCount(AggregatedResources.ItemEntry itemEntry) {

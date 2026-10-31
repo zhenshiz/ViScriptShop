@@ -157,7 +157,8 @@
   "viscript_shop.ui.searchMode.id": "序号查询",
   "viscript_shop.ui.layout.grid": "网格布局",
   "viscript_shop.ui.layout.list": "列表布局",
-  "viscript_shop.tooltip.stock.quick_max": "按住 %s 点击可直接设为最大库存",
+  "viscript_shop.tooltip.stock.quick_max": "按住 %s 点击可直接设为最大可购买数量",
+  "viscript_shop.tooltip.quantity.adjust": "使用鼠标滚轮，或按住左键左右拖动调整数值",
   "viscript_shop.message.output_target.unavailable": "%s，购买已取消",
   "viscript_shop.button.confirm": "确定",
   "viscript_shop.button.cancel": "取消",
@@ -305,5 +306,14 @@
   "viscript_shop.jei.stage.unlocked": "已解锁",
   "viscript_shop.jei.stage.locked": "尚未解锁",
   "viscript_shop.jei.stage.group": "第 %s 组：%s [%s]",
-  "viscript_shop.message.buy.invalid_request": "购买清单无效，请重新打开商店后重试。"
+  "viscript_shop.message.buy.invalid_request": "购买清单无效，请重新打开商店后重试。",
+  "viscript_shop.ai.change.name": "商店名称：%s → %s",
+  "viscript_shop.ai.change.quick_open": "快捷打开：%s → %s",
+  "viscript_shop.ai.change.add_category": "新增分类：%s（ID：%s，类型：%s）",
+  "viscript_shop.ai.change.rename_category": "分类 %s：%s → %s",
+  "viscript_shop.ai.change.remove_category": "删除分类：%s（含 %s 件商品）",
+  "viscript_shop.ai.change.merchant": "商品 %s：\n之前：%s\n之后：%s",
+  "viscript_shop.ai.change.remove_merchant": "删除商品 %s：%s",
+  "viscript_shop.ai.change.merchant_summary": "产出 %s；成本 %s + %s；金额 %s；库存 %s；经验 %s；%s",
+  "viscript_shop.ai.change.none": "无"
 }

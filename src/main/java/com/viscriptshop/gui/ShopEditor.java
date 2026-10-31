@@ -9,10 +9,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.util.TreeBuilder;
 import com.mojang.blaze3d.MethodsReturnNonnullByDefault;
+import com.viscript_lib.gui.ai.AiEditorAdapter;
 import com.viscript_lib.gui.editor.EditorUploadAction;
 import com.viscript_lib.gui.editor.FunctionFileEditor;
 import com.viscript_lib.util.ClipBoardHelper;
 import com.viscriptshop.ViscriptShop;
+import com.viscriptshop.gui.ai.ShopAiAdapter;
 import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.Shop;
@@ -22,6 +24,7 @@ import com.viscriptshop.gui.view.CategoryView;
 import com.viscriptshop.gui.view.ShopInspectorView;
 import com.viscriptshop.gui.view.ShopPreviewView;
 import com.viscriptshop.util.ShopHelper;
+import lombok.Getter;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
@@ -39,6 +42,24 @@ import java.nio.file.Path;
 public class ShopEditor extends FunctionFileEditor {
     public final static ResourceLocation SHOP_ID = ViscriptShop.id("editor");
 
+    @Getter
+    private boolean aiPreviewing;
+
+    /**
+     * 切换 AI 预览交互并显示首个分类，预览时仍可切换分类与查看商品。
+     *
+     * @param previewing 是否等待玩家确认
+     */
+    public void setAiPreviewing(boolean previewing) {
+        aiPreviewing = previewing;
+        shopInspectorView.setAiPreviewMode(previewing, this);
+        categoryView.loadView();
+        if (previewing && getCurrentProject() instanceof Shop shop && !shop.getShopInfo().getCategoryInfos().isEmpty()) {
+            categoryView.selectPreviewCategory(shop.getShopInfo().getCategoryInfos().get(0));
+        }
+        shopPreviewView.invalidateMerchants();
+    }
+
     public ShopInspectorView shopInspectorView;
     public final CategoryView categoryView = new CategoryView(this);
     public final ShopPreviewView shopPreviewView = new ShopPreviewView(this);
@@ -50,6 +71,11 @@ public class ShopEditor extends FunctionFileEditor {
         this.centerWindow.getLeftTop().addView(shopPreviewView);
         removeBottomWindow();
         selectInspectorView();
+    }
+
+    @Override
+    public AiEditorAdapter createAiEditorAdapter() {
+        return new ShopAiAdapter();
     }
 
     @Override

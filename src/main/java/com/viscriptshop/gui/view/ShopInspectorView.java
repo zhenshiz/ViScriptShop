@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class ShopInspectorView extends View {
     private final Inspector inspector;
+    private final Runnable previewChanged;
     private final Button shopButton;
     private final Button categoryButton;
     private final Button merchantButton;
@@ -33,6 +34,8 @@ public class ShopInspectorView extends View {
 
     public ShopInspectorView(ShopEditor editor) {
         super("viscript_shop.editor.view.inspector", Icons.SETTINGS);
+        this.previewChanged = () -> editor.shopPreviewView.invalidateMerchants();
+        addEventListener(Configurator.CHANGE_EVENT, event -> previewChanged.run());
         this.inspector = new Inspector();
         this.inspector.setHistoryStack(editor.getHistoryView());
         this.inspector.layout(layout -> {
@@ -67,6 +70,17 @@ public class ShopInspectorView extends View {
         updateButtons();
     }
 
+    /**
+     * 暂停预览期间的表单历史记录，并禁止修改表单。
+     *
+     * @param previewing 是否正在等待 AI 修改确认
+     * @param editor 所属编辑器
+     */
+    public void setAiPreviewMode(boolean previewing, ShopEditor editor) {
+        inspector.setHistoryStack(previewing ? null : editor.getHistoryView());
+        setActive(!previewing);
+    }
+
     public void loadShop(ShopInfo shopInfo) {
         this.shopInfo = shopInfo;
         this.categoryInfo = null;
@@ -74,11 +88,26 @@ public class ShopInspectorView extends View {
         inspectShop(shopInfo);
     }
 
+    /**
+     * 历史恢复后重建表单，不在恢复过程中生成新的历史条目。
+     *
+     * @param shopInfo 恢复后的商店信息
+     */
+    public void refreshAfterHistory(ShopInfo shopInfo) {
+        var history = inspector.getHistoryStack();
+        inspector.setHistoryStack(null);
+        try {
+            loadShop(shopInfo);
+        } finally {
+            inspector.setHistoryStack(history);
+        }
+    }
+
     public void inspectShop(ShopInfo shopInfo) {
         this.shopInfo = shopInfo;
         this.scope = Scope.SHOP;
         clearInspector();
-        inspector.inspect(shopInfo);
+        inspector.inspect(shopInfo, null, null, previewChanged);
         updateButtons();
     }
 
@@ -87,7 +116,7 @@ public class ShopInspectorView extends View {
         this.merchantInfo = null;
         this.scope = Scope.CATEGORY;
         clearInspector();
-        inspector.inspect(categoryInfo);
+        inspector.inspect(categoryInfo, null, null, previewChanged);
         updateButtons();
     }
 
@@ -137,6 +166,10 @@ public class ShopInspectorView extends View {
         var historyStack = inspector.getHistoryStack();
         if (recorder == null || historyStack == null) return;
 
+        // 为当前商品保留初始快照，撤销时不回退到会替换整个商品列表的分类快照。
+        recorder.record(historyStack,
+                Component.translatable("editor.inspector.history", merchantInfo.getConfigurableName()), merchantInfo)
+                .setOnExecute(previewChanged).setOnUndo(previewChanged);
         configurator.addEventListener(Configurator.CHANGE_EVENT, event -> {
             if (event.target instanceof Configurator changedConfigurator) {
                 var notifyName = changedConfigurator.getNotifyName();
@@ -144,7 +177,7 @@ public class ShopInspectorView extends View {
                         historyStack,
                         notifyName.getString().isEmpty() ? Component.literal(merchantInfo.getConfigurableName()) : notifyName,
                         changedConfigurator
-                );
+                ).setOnExecute(previewChanged).setOnUndo(previewChanged);
             }
         });
     }

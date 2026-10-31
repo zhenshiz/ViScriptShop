@@ -17,8 +17,6 @@ import net.nikdo53.neobackports.io.attachment.AttachmentType;
 import net.nikdo53.neobackports.io.attachment.DataAttachment;
 import net.nikdo53.neobackports.registry.NeoForgeRegistries;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 public class ShopRegistries {
@@ -40,8 +38,6 @@ public class ShopRegistries {
         public static final StreamCodec<Money> STREAM_CODEC = PersistedParser.createStreamCodec(Money::new);
         @Persisted
         private double money;
-        @Persisted
-        private List<String> flags = new ArrayList<>();
         @Persisted
         private String outputTargetId = ItemOutputTargets.PLAYER_INVENTORY;
         /** 玩家偏好的虚拟货币商品布局；旧存档未配置时仍使用列表。 */

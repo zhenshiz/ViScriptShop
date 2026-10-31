@@ -2,7 +2,7 @@ package com.viscriptshop.promotion.condition;
 
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
-import com.viscriptshop.ShopRegistries;
+import com.viscript_lib.stage.StageUtil;
 import com.viscriptshop.promotion.PromotionContext;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,6 +24,6 @@ public class StageFlagCondition implements PromotionCondition {
         return context.player() != null
                 && flag != null
                 && !flag.isBlank()
-                && context.player().getData(ShopRegistries.MONEY).getFlags().contains(flag.trim());
+                && StageUtil.hasStageFlag(context.player(), flag);
     }
 }

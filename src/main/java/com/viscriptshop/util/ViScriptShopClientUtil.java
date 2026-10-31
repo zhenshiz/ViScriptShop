@@ -3,6 +3,7 @@ package com.viscriptshop.util;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
+import com.viscript_lib.stage.StageUtil;
 import com.viscriptshop.ShopRegistries;
 import com.viscriptshop.ViscriptShop;
 import com.viscriptshop.gui.ShopUI;
@@ -42,6 +43,6 @@ public class ViScriptShopClientUtil {
 
     @Info("获取玩家阶段标记")
     public static List<String> getStageFlags(LocalPlayer player) {
-        return player.getData(ShopRegistries.MONEY).getFlags();
+        return StageUtil.getStageFlags(player);
     }
 }

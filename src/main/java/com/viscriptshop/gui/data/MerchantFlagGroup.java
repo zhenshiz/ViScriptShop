@@ -4,6 +4,8 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
+import com.viscript_lib.stage.IStageFlagGroup;
+import com.viscript_lib.stage.StageMatchMode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -15,13 +17,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class MerchantFlagGroup implements IPersistedSerializable {
+public class MerchantFlagGroup implements IPersistedSerializable, IStageFlagGroup {
     public static final StreamCodec<MerchantFlagGroup> STREAM_CODEC;
     public static final Codec<MerchantFlagGroup> CODEC;
 
@@ -35,128 +36,32 @@ public class MerchantFlagGroup implements IPersistedSerializable {
         STREAM_CODEC = PersistedParser.createStreamCodec(MerchantFlagGroup::new);
     }
 
-    public List<String> normalizedFlags() {
-        LinkedHashSet<String> normalized = new LinkedHashSet<>();
-        if (flags != null) {
-            for (String flag : flags) {
-                String value = flag == null ? "" : flag.trim();
-                if (!value.isEmpty()) {
-                    normalized.add(value);
-                }
-            }
-        }
-        return new ArrayList<>(normalized);
+    @Override
+    public StageMatchMode getStageMatchMode() {
+        return mode == null ? StageMatchMode.AND : StageMatchMode.valueOf(mode.name());
     }
 
-    public boolean isEmpty() {
-        return normalizedFlags().isEmpty();
+    @Override
+    public void setStageMatchMode(StageMatchMode mode) {
+        this.mode = MatchMode.valueOf(mode.name());
     }
 
-    public boolean matches(Collection<String> playerFlags) {
-        List<String> required = normalizedFlags();
-        if (required.isEmpty()) {
-            return true;
-        }
-
-        MatchMode activeMode = mode == null ? MatchMode.AND : mode;
-        return switch (activeMode) {
-            case AND -> playerFlags.containsAll(required);
-            case OR -> required.stream().anyMatch(playerFlags::contains);
-            case NOT -> !playerFlags.containsAll(required);
-            case NOR -> required.stream().noneMatch(playerFlags::contains);
-        };
-    }
-
-    public Component getLockHint(int index, Collection<String> playerFlags) {
-        List<String> required = normalizedFlags();
-        MatchMode activeMode = mode == null ? MatchMode.AND : mode;
-        return switch (activeMode) {
-            case AND -> Component.translatable("viscript_shop.ui.flag_groups.lock.and", index, join(missingFlags(required, playerFlags)));
-            case OR -> Component.translatable("viscript_shop.ui.flag_groups.lock.or", index, join(required));
-            case NOT -> Component.translatable("viscript_shop.ui.flag_groups.lock.not", index, join(required));
-            case NOR -> Component.translatable("viscript_shop.ui.flag_groups.lock.nor", index, join(conflictingFlags(required, playerFlags)));
-        };
-    }
-
-    public static boolean canAccess(GroupMatchMode groupMode, List<MerchantFlagGroup> groups, Collection<String> playerFlags) {
-        List<MerchantFlagGroup> activeGroups = activeGroups(groups);
-        if (activeGroups.isEmpty()) {
-            return true;
-        }
-        GroupMatchMode activeMode = groupMode == null ? GroupMatchMode.OR : groupMode;
-        return switch (activeMode) {
-            case AND -> activeGroups.stream().allMatch(group -> group.matches(playerFlags));
-            case OR -> activeGroups.stream().anyMatch(group -> group.matches(playerFlags));
-            case NOT -> !activeGroups.stream().allMatch(group -> group.matches(playerFlags));
-            case NOR -> activeGroups.stream().noneMatch(group -> group.matches(playerFlags));
-        };
+    public static boolean canAccess(GroupMatchMode mode, List<MerchantFlagGroup> groups, Collection<String> flags) {
+        return IStageFlagGroup.canAccess(mode == null ? StageMatchMode.OR : StageMatchMode.valueOf(mode.name()), groups, flags);
     }
 
     @Deprecated
-    public static boolean canAccess(List<MerchantFlagGroup> groups, Collection<String> playerFlags) {
-        return canAccess(GroupMatchMode.OR, groups, playerFlags);
+    public static boolean canAccess(List<MerchantFlagGroup> groups, Collection<String> flags) {
+        return canAccess(GroupMatchMode.OR, groups, flags);
     }
 
-    public static List<Component> getLockTooltips(GroupMatchMode groupMode, List<MerchantFlagGroup> groups, Collection<String> playerFlags) {
-        List<MerchantFlagGroup> activeGroups = activeGroups(groups);
-        if (activeGroups.isEmpty() || canAccess(groupMode, activeGroups, playerFlags)) {
-            return List.of();
-        }
-
-        List<Component> tooltips = new ArrayList<>();
-        GroupMatchMode activeMode = groupMode == null ? GroupMatchMode.OR : groupMode;
-        tooltips.add(Component.translatable(activeMode.getLockKey()));
-        List<Component> details = new ArrayList<>();
-        for (int i = 0; i < activeGroups.size(); i++) {
-            MerchantFlagGroup group = activeGroups.get(i);
-            boolean matched = group.matches(playerFlags);
-            if (activeMode == GroupMatchMode.NOT || activeMode == GroupMatchMode.NOR) {
-                if (matched) {
-                    details.add(Component.translatable("viscript_shop.ui.flag_groups.lock.satisfied", i + 1));
-                }
-            } else if (!matched) {
-                details.add(group.getLockHint(i + 1, playerFlags));
-            }
-        }
-
-        int maxShown = Math.min(4, details.size());
-        for (int i = 0; i < maxShown; i++) {
-            tooltips.add(details.get(i));
-        }
-        if (details.size() > maxShown) {
-            tooltips.add(Component.translatable("viscript_shop.ui.flag_groups.lock.more", details.size() - maxShown));
-        }
-        return tooltips;
+    public static List<Component> getLockTooltips(GroupMatchMode mode, List<MerchantFlagGroup> groups, Collection<String> flags) {
+        return IStageFlagGroup.getLockTooltips(mode == null ? StageMatchMode.OR : StageMatchMode.valueOf(mode.name()), groups, flags);
     }
 
     @Deprecated
-    public static List<Component> getLockTooltips(List<MerchantFlagGroup> groups, Collection<String> playerFlags) {
-        return getLockTooltips(GroupMatchMode.OR, groups, playerFlags);
-    }
-
-    private static List<MerchantFlagGroup> activeGroups(List<MerchantFlagGroup> groups) {
-        if (groups == null || groups.isEmpty()) {
-            return List.of();
-        }
-        return groups.stream()
-                .filter(group -> group != null && !group.isEmpty())
-                .toList();
-    }
-
-    private static List<String> missingFlags(List<String> required, Collection<String> playerFlags) {
-        return required.stream()
-                .filter(flag -> !playerFlags.contains(flag))
-                .toList();
-    }
-
-    private static List<String> conflictingFlags(List<String> required, Collection<String> playerFlags) {
-        return required.stream()
-                .filter(playerFlags::contains)
-                .toList();
-    }
-
-    private static String join(List<String> flags) {
-        return String.join(", ", flags);
+    public static List<Component> getLockTooltips(List<MerchantFlagGroup> groups, Collection<String> flags) {
+        return getLockTooltips(GroupMatchMode.OR, groups, flags);
     }
 
     @Getter

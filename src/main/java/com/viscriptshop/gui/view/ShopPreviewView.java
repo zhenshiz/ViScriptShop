@@ -17,7 +17,6 @@ import com.viscriptshop.gui.data.CategoryInfo;
 import com.viscriptshop.gui.data.MerchantInfo;
 import com.viscriptshop.gui.data.MerchantItemInfo;
 import com.viscriptshop.gui.data.Shop;
-import com.viscriptshop.promotion.PromotionResolver;
 import com.viscriptshop.util.MoneyUtil;
 import com.viscriptshop.util.UIElementUtil;
 import dev.vfyjxf.taffy.style.AlignContent;
@@ -26,7 +25,10 @@ import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyDisplay;
 import net.minecraft.network.chat.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 public class ShopPreviewView extends View {
@@ -41,7 +43,9 @@ public class ShopPreviewView extends View {
 
     private CategoryInfo lastRenderedCategory = null;
     private CategoryInfo.ShopType lastRenderedShopType = null;
-    private int lastRenderedSignature = 0;
+    private List<MerchantInfo> lastRenderedMerchants;
+    private int lastRenderedMerchantCount;
+    private boolean merchantsDirty = true;
 
     public ShopPreviewView(ShopEditor editor) {
         super("viscript_shop.editor.view.shopPreview");
@@ -56,6 +60,7 @@ public class ShopPreviewView extends View {
         UIElement addButton = new Button().setText("viscript_shop.editor.add.merchant").setOnClick(event -> {
             MerchantInfo merchantInfo = new MerchantInfo();
             selectedCategory.getMerchants().add(merchantInfo);
+            invalidateMerchants();
             editor.inspectMerchant(merchantInfo, selectedCategory);
         }).layout(layout -> {
             layout.heightPercent(100);
@@ -95,6 +100,12 @@ public class ShopPreviewView extends View {
     public void loadView() {
         merchantScroller.setItems(List.of());
         lastRenderedCategory = null;
+        merchantsDirty = true;
+    }
+
+    /** 标记商品预览需要在下一次界面 tick 刷新，保留滚动位置。 */
+    public void invalidateMerchants() {
+        merchantsDirty = true;
     }
 
     private void tickReloadMerchants() {
@@ -105,20 +116,22 @@ public class ShopPreviewView extends View {
             if (lastRenderedCategory != null) merchantScroller.setItems(List.of());
             lastRenderedCategory = null;
             lastRenderedShopType = null;
-            lastRenderedSignature = 0;
+            lastRenderedMerchants = null;
+            lastRenderedMerchantCount = 0;
             return;
         }
 
-        head.setDisplay(TaffyDisplay.FLEX);
+        head.setDisplay(!editor.isAiPreviewing());
 
         CategoryInfo.ShopType shopType = selectedCategory.getShopType();
-        int signature = computeSignature(selectedCategory);
+        List<MerchantInfo> merchants = selectedCategory.getMerchants();
 
         boolean dragging = merchantScroller.draggedMerchant != null;
         boolean needsRebuild = !dragging && (
                 selectedCategory != lastRenderedCategory ||
                         shopType != lastRenderedShopType ||
-                        signature != lastRenderedSignature ||
+                        merchantsDirty || merchants != lastRenderedMerchants ||
+                        merchants.size() != lastRenderedMerchantCount ||
                         merchantScroller.columns != merchantScroller.columnCount()
         );
 
@@ -128,7 +141,9 @@ public class ShopPreviewView extends View {
             if (categoryChanged) merchantScroller.scrollToTop();
             lastRenderedCategory = selectedCategory;
             lastRenderedShopType = shopType;
-            lastRenderedSignature = signature;
+            lastRenderedMerchants = merchants;
+            lastRenderedMerchantCount = merchants.size();
+            merchantsDirty = false;
         }
     }
 
@@ -149,6 +164,7 @@ public class ShopPreviewView extends View {
         private float dragX = Float.NaN;
         private float dragY = Float.NaN;
         private int lastTargetIndex = -1;
+        private float viewportHeight;
 
         private MerchantScroller() {
             setId("shop_preview_merchants");
@@ -163,7 +179,7 @@ public class ShopPreviewView extends View {
                 draggedMerchant = null;
                 dragX = dragY = Float.NaN;
                 lastTargetIndex = -1;
-                lastRenderedSignature = computeSignature(selectedCategory);
+                invalidateMerchants();
                 refreshVisibleItems();
             });
         }
@@ -191,7 +207,7 @@ public class ShopPreviewView extends View {
                 card.root.addClass("shop-preview-merchant").layout(layout -> layout.flexShrink(0));
                 card.root.addEventListener(UIEvents.MOUSE_DOWN, event -> handleMerchantMouseDown(event, merchant));
                 card.dragHandle.setId(id + "_drag").addEventListener(UIEvents.MOUSE_DOWN, event -> {
-                    if (event.button != 0) return;
+                    if (event.button != 0 || editor.isAiPreviewing()) return;
                     draggedMerchant = merchant;
                     lastTargetIndex = -1;
                     // 拖拽源使用滚动容器，翻页卸载卡片时仍能接收拖拽和松开事件。
@@ -210,6 +226,11 @@ public class ShopPreviewView extends View {
 
         @Override
         public void screenTick() {
+            float height = viewPort.getContentHeight();
+            if (Math.abs(height - viewportHeight) > 0.01f) {
+                viewportHeight = height;
+                refreshVisibleItems();
+            }
             super.screenTick();
             if (draggedMerchant == null || Float.isNaN(dragY)) return;
             float top = viewPort.getContentY();
@@ -403,6 +424,7 @@ public class ShopPreviewView extends View {
 
     public void removeMerchant(int index) {
         selectedCategory.getMerchants().remove(index);
+        invalidateMerchants();
     }
 
     private void handleMerchantMouseDown(UIEvent event, MerchantInfo merchantInfo) {
@@ -416,6 +438,7 @@ public class ShopPreviewView extends View {
     }
 
     private void showMerchantMenuTab(UIEvent event, MerchantInfo merchantInfo) {
+        if (editor.isAiPreviewing()) return;
         int index = findMerchantIndexByIdentity(merchantInfo);
         if (index < 0) return;
 
@@ -502,6 +525,7 @@ public class ShopPreviewView extends View {
             // 清空剪贴板
             clipboard = null;
         }
+        invalidateMerchants();
     }
 
     /**
@@ -556,6 +580,7 @@ public class ShopPreviewView extends View {
         selectedCategory.getMerchants().forEach(merchant -> {
             merchant.setTradeType(tradeType);
         });
+        invalidateMerchants();
         Dialog.showNotification(
                 Component.translatable("viscript_shop.editor.setTradeType.success",
                         Component.translatable(tradeType.getSerializedName())).getString(),
@@ -572,35 +597,6 @@ public class ShopPreviewView extends View {
             }
         }
         return -1;
-    }
-
-    private int computeSignature(CategoryInfo category) {
-        int signature = computeSignatureFromMerchantList(category.getShopType(), category.getMerchants());
-        if (editor.getCurrentProject() instanceof Shop shop) {
-            signature = 31 * signature + PromotionResolver.collectParentRules(shop.getShopInfo(), category).hashCode();
-        }
-        return signature;
-    }
-
-    private int computeSignatureFromMerchantList(CategoryInfo.ShopType shopType, List<MerchantInfo> merchants) {
-        int sig = 1;
-        sig = 31 * sig + (shopType == null ? 0 : shopType.ordinal());
-
-        for (MerchantInfo m : merchants) {
-            sig = 31 * sig + System.identityHashCode(m);
-            // getItem()/getRenderItem() 返回新副本，Lombok 的 hashCode 会让未修改的商品每 tick 都被判为变化。
-            sig = 31 * sig + Objects.hash(m.getMoney(), m.getTradeType(),
-                    previewItemSignature(m.getItemAInfo()), previewItemSignature(m.getItemBInfo()),
-                    previewItemSignature(m.getItemResultInfo()), m.isPromotionEnabled(),
-                    m.isInheritParentPromotions(), m.getPromotionRules());
-        }
-        return sig;
-    }
-
-    private int previewItemSignature(MerchantItemInfo item) {
-        var display = item.getDisplay();
-        return Objects.hash(item.getSerializedItem(), display.getRenderMode(), display.getResourcePath(),
-                display.getResourceName(), display.getSerializedRenderItem());
     }
 
     private record MerchantCard(UIElement root, UIElement dragHandle) {

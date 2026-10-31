@@ -12,7 +12,6 @@ import java.util.Map;
 public class ShopSavedData extends SavedData {
     public static final String GLOBAL_STOCK_OWNER = "__global__";
     private static final String MERCHANT_STOCKS_TAG = "__viscriptShopMerchantStocks";
-    private static final String LEGACY_PERSONAL_STOCK_TAG = "__viscriptShopPersonalStock";
     private static final String STOCK_KEY_SEPARATOR = "\u001F";
 
     public final Map<String, ShopInfo> shopInfoMap = new HashMap<>();
@@ -128,7 +127,7 @@ public class ShopSavedData extends SavedData {
         }
 
         for (String shop : nbt.getAllKeys()) {
-            if (shop.equals(MERCHANT_STOCKS_TAG) || shop.equals(LEGACY_PERSONAL_STOCK_TAG)) {
+            if (shop.equals(MERCHANT_STOCKS_TAG)) {
                 continue;
             }
             ShopInfo shopInfo = Shop.deserializeRuntimeInfo(provider, nbt.getCompound(shop), true);
