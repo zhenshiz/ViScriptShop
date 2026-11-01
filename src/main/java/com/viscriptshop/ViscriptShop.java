@@ -39,7 +39,8 @@ public class ViscriptShop {
         PlayerUIMenuType.register(ShopEditor.SHOP_ID, ignored -> player -> {
             if (player.level().isClientSide) {
                 ModularUI modularUI = new ModularUI(UI.of(ViScriptEditorWindow.open(ShopEditor.SHOP_ID, ShopEditor::new)
-                        .setMinimizedBoundsPercent(0, 0, 79, 100)))
+                        .setMinimizedBoundsPercent(0, 0, 79, 100)
+                        .setGameWindowReopener(ShopEditor::requestMenu)))
                         .shouldCloseOnKeyInventory(false);
                 if (!Platform.isDevEnv()) {
                     modularUI.shouldCloseOnEsc(false);

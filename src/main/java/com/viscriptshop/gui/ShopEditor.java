@@ -18,6 +18,7 @@ import com.viscriptshop.gui.view.CategoryView;
 import com.viscriptshop.gui.view.ShopInspectorView;
 import com.viscriptshop.gui.view.ShopPreviewView;
 import com.viscriptshop.util.ShopHelper;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +30,18 @@ import java.io.File;
 @MethodsReturnNonnullByDefault
 public class ShopEditor extends FunctionFileEditor {
     public final static ResourceLocation SHOP_ID = ViscriptShop.id("editor");
+
+    /**
+     * 请求服务端重新打开编辑器容器，恢复返回游戏窗口后的配方查看器。
+     *
+     * @return 已发送请求时为 <code>true</code>，未连接服务器时为 <code>false</code>
+     */
+    public static boolean requestMenu() {
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection == null) return false;
+        connection.sendCommand(ViscriptShop.MOD_ID + " editor");
+        return true;
+    }
 
     private boolean aiPreviewing;
 
