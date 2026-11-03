@@ -158,6 +158,8 @@
   "viscript_shop.ui.layout.grid": "Grid layout",
   "viscript_shop.ui.layout.list": "List layout",
   "viscript_shop.tooltip.stock.quick_max": "Hold %s and click to set the maximum affordable quantity",
+  "viscript_shop.tooltip.quantity.increase": "Click to add 1; Shift-click to add 10",
+  "viscript_shop.tooltip.quantity.decrease": "Click to remove 1; Shift-click to remove 10",
   "viscript_shop.tooltip.quantity.adjust": "Scroll or hold the left mouse button and drag left or right to adjust the value",
   "viscript_shop.message.output_target.unavailable": "%s. Purchase canceled.",
   "viscript_shop.button.confirm": "Confirm",

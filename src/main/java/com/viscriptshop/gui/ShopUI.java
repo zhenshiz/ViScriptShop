@@ -1049,7 +1049,8 @@ public class ShopUI extends UIElement {
 
         buttonHolder[0] = ShopButton.other(theme).setText("-").setOnClick(event -> {
             if ((int) merchantInfo.getBuyCount() > 0) {
-                merchantInfo.setBuyCount((int) merchantInfo.getBuyCount() - 1);
+                merchantInfo.setBuyCount(Math.max(0, (int) merchantInfo.getBuyCount()
+                        - (event.isShiftDown() ? 10 : 1)));
                 reloadShoppingItem();
                 reloadInventoryItem();
                 updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
@@ -1062,7 +1063,8 @@ public class ShopUI extends UIElement {
             if (event.isCtrlDown() || (int) merchantInfo.getBuyCount() < maxCount) {
                 merchantInfo.setBuyCount(event.isCtrlDown()
                         ? maxPurchasableQuantity(merchantInfo)
-                        : (int) merchantInfo.getBuyCount() + 1);
+                        : (int) Math.min(maxCount, (long) merchantInfo.getBuyCount().intValue()
+                                + (event.isShiftDown() ? 10 : 1)));
                 reloadShoppingItem();
                 reloadInventoryItem();
                 updateStockButtons(merchantInfo, buttonHolder[0], buttonHolder[1]);
@@ -1071,12 +1073,19 @@ public class ShopUI extends UIElement {
         buttonHolder[1].setId("shop_merchant_add_" + index);
 
         if (stock != 0) {
+            buttonHolder[0].addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+                event.hoverTooltips = new HoverTooltips(
+                        List.of(Component.translatable("viscript_shop.tooltip.quantity.decrease")),
+                        null, null, null
+                );
+            });
             buttonHolder[1].addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
                 event.hoverTooltips = new HoverTooltips(
-                        List.of(Component.translatable(
-                                "viscript_shop.tooltip.stock.quick_max",
-                                Minecraft.ON_OSX ? "Cmd" : "Ctrl"
-                        )),
+                        List.of(Component.translatable("viscript_shop.tooltip.quantity.increase"),
+                                Component.translatable(
+                                        "viscript_shop.tooltip.stock.quick_max",
+                                        Minecraft.ON_OSX ? "Cmd" : "Ctrl"
+                                )),
                         null, null, null
                 );
             });
@@ -1643,8 +1652,9 @@ public class ShopUI extends UIElement {
     /**
      * 计算当前玩家可支付且库存允许的最大交易份数。
      *
-     * <p>物品数量使用服务端容器计数快照，成本使用实际促销报价。无支付成本且库存无限时
-     * 不存在有限最大值，保持普通增加一份的行为。
+     * <p>保留其他商品的已选数量，按整车促销报价占用货币和物品预算；当前商品的数量由
+     * 候选数量替换，不会重复占用预算。物品数量使用服务端容器计数快照，货币按净支出计算。
+     * 无支付成本且库存无限时不存在有限最大值，保持普通增加一份的行为。
      *
      * @param merchantInfo 当前分类中的商品信息
      * @return 最大可购买份数；无法支付或没有玩家时返回零
@@ -1680,19 +1690,20 @@ public class ShopUI extends UIElement {
         for (int i = boundaries.size() - 1; i >= 0; i--) {
             int lower = boundaries.get(i);
             int upper = i + 1 < boundaries.size() ? boundaries.get(i + 1) - 1 : limit;
-            AggregatedResources upperCost = quoteMerchantCost(merchantInfo, upper);
-            if (canPayCost(upperCost, balance)) {
-                if (merchantInfo.getStock() < 0 && upper == Integer.MAX_VALUE
-                        && upperCost.getItemEntries().isEmpty() && !MoneyUtil.isPositive(upperCost.getTotalMoney())) {
-                    return (int) Math.min(Integer.MAX_VALUE, (long) merchantInfo.getBuyCount().intValue() + 1);
+            if (canPayQuote(quoteCartWithQuantity(merchantInfo, upper), balance)) {
+                if (merchantInfo.getStock() < 0 && upper == Integer.MAX_VALUE) {
+                    AggregatedResources merchantCost = quoteMerchantCost(merchantInfo, upper);
+                    if (merchantCost.getItemEntries().isEmpty() && !MoneyUtil.isPositive(merchantCost.getTotalMoney())) {
+                        return (int) Math.min(Integer.MAX_VALUE, (long) merchantInfo.getBuyCount().intValue() + 1);
+                    }
                 }
                 return upper;
             }
-            if (!canPayCost(quoteMerchantCost(merchantInfo, lower), balance)) continue;
+            if (!canPayQuote(quoteCartWithQuantity(merchantInfo, lower), balance)) continue;
             int high = upper - 1;
             while (lower < high) {
                 int middle = lower + (int) (((long) high - lower + 1) / 2);
-                if (canPayCost(quoteMerchantCost(merchantInfo, middle), balance)) {
+                if (canPayQuote(quoteCartWithQuantity(merchantInfo, middle), balance)) {
                     lower = middle;
                 } else {
                     high = middle - 1;
@@ -1701,6 +1712,28 @@ public class ShopUI extends UIElement {
             return lower;
         }
         return 0;
+    }
+
+    /**
+     * 获取替换当前商品数量后的整车报价，保留所有分类中其他商品的已选数量。
+     *
+     * @param merchantInfo 当前分类中的商品信息
+     * @param quantity 正整数交易份数
+     * @return 包含其他已选商品的整车成本和收益
+     */
+    private TradeQuote quoteCartWithQuantity(MerchantInfo merchantInfo, int quantity) {
+        AggregatedResources request = new AggregatedResources();
+        for (CategoryInfo category : currentShopInfo.getCategoryInfos()) {
+            for (MerchantInfo merchant : category.getMerchants()) {
+                int count = category == selectedCategory && merchant == merchantInfo
+                        ? quantity : merchant.getBuyCount().intValue();
+                if (count > 0) {
+                    request.getPurchaseEntries().add(new AggregatedResources.PurchaseEntry(
+                            category.getId(), merchant.getId(), count));
+                }
+            }
+        }
+        return PromotionEngine.quote(minecraft.player, shopLocation, currentShopInfo, request);
     }
 
     /**
@@ -1718,14 +1751,16 @@ public class ShopUI extends UIElement {
     }
 
     /**
-     * 检查玩家的物品计数快照与余额是否足以支付报价。
+     * 检查玩家的物品计数快照与余额是否足以支付整车报价。
      *
-     * @param cost 汇总支付成本
+     * @param quote 整车成本和收益报价
      * @param balance 当前玩家余额
      * @return 所有物品与货币成本均可支付时返回 {@code true}
      */
-    private boolean canPayCost(AggregatedResources cost, double balance) {
-        if (cost.hasMissingItems() || !MoneyUtil.hasEnough(balance, cost.getTotalMoney())) return false;
+    private boolean canPayQuote(TradeQuote quote, double balance) {
+        AggregatedResources cost = quote.cost();
+        double netMoneyCost = MoneyUtil.subtract(cost.getTotalMoney(), quote.gain().getTotalMoney());
+        if (cost.hasMissingItems() || !MoneyUtil.hasEnough(balance, netMoneyCost)) return false;
         for (AggregatedResources.ItemEntry item : cost.getItemEntries()) {
             if (getItemCount(item) < item.getCount()) return false;
         }

@@ -29,6 +29,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +45,18 @@ public class ShopEditor extends FunctionFileEditor {
 
     @Getter
     private boolean aiPreviewing;
+
+    /**
+     * 请求服务端重新打开编辑器容器，恢复返回游戏窗口后的配方查看器。
+     *
+     * @return 已发送请求时为 <code>true</code>，未连接服务器时为 <code>false</code>
+     */
+    public static boolean requestMenu() {
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection == null) return false;
+        connection.sendCommand(ViscriptShop.MOD_ID + " editor");
+        return true;
+    }
 
     /**
      * 切换 AI 预览交互并显示首个分类，预览时仍可切换分类与查看商品。

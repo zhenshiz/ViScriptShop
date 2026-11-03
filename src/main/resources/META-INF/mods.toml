@@ -1,14 +1,14 @@
 modLoader="javafml"
 loaderVersion="${loader_version_range}"
 license="${mod_license}"
-#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/"
 #clientSideOnly=true - defaults to false if absent
 [[mods]]
 modId="viscript_shop"
 version="${mod_version}"
 displayName="${mod_name}"
 #updateJSONURL="https://change.me.example.invalid/updates.json"
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/"
+displayURL="https://doc.mafuyu.moe/"
+issueTrackerURL="https://github.com/zhenshiz/ViScriptShop/issues"
 logoFile="icon.png"
 #credits=""
 authors="${mod_authors}"
